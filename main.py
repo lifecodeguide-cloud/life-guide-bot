@@ -211,7 +211,6 @@ async def show_soul_handler(callback: CallbackQuery):
     soul = data["soul"]
 
     text = (
-        f"Ваше число души — {soul}.\n\n"
         f"{SOUL_TEXTS[soul]}"
     )
 
