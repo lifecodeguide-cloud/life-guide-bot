@@ -141,7 +141,8 @@ def calculate_purpose(date_str: str) -> int:
 # =========================
 # BOT / DP
 # =========================
-TOKEN = "8425994397:AAG2pEZyV-Z-jYSRkBsCbRImm5WNBX5kNUM"
+import os
+TOKEN = os.getenv("BOT_TOKEN")
 
 
 dp = Dispatcher()
