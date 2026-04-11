@@ -370,9 +370,14 @@ async def show_purpose_number_handler(callback: CallbackQuery):
 
 
     await callback.message.answer(
-        text,
-        reply_markup=purpose_number_keyboard
+    text,
+    reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_outro")]
+        ]
     )
+)
+
     await callback.answer()
 
 
