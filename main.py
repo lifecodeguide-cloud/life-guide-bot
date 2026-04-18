@@ -70,9 +70,10 @@ open_full_keyboard = InlineKeyboardMarkup(
     ]
 )
 
+# ИСПРАВЛЕНО: отдельный callback только для платного вступления
 purpose_intro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_number")]
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_number_paid")]
     ]
 )
 
@@ -195,7 +196,9 @@ async def start_handler(message: Message):
     if text.startswith("/start paid"):
         if not has_calculation_data(data):
             data["paid"] = True
-            data["paid_shown"] = True
+            # ИСПРАВЛЕНО: не ставим paid_shown=True заранее,
+            # чтобы после ввода даты send_paid_flow реально отправил вступление
+            data["paid_shown"] = False
             data["stage"] = "awaiting_date_after_payment"
 
             await message.answer(
@@ -446,7 +449,8 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
 # =========================
 # ПРЕДНАЗНАЧЕНИЕ ПОСЛЕ ОПЛАТЫ — ЧАСТЬ 2
 # =========================
-@dp.callback_query(lambda c: c.data == "show_purpose_number")
+# ИСПРАВЛЕНО: ловим и старый callback, и новый платный callback
+@dp.callback_query(lambda c: c.data in ["show_purpose_number", "show_purpose_number_paid"])
 async def show_purpose_number_handler(callback: CallbackQuery):
     user_id = callback.from_user.id
     data = user_data.get(user_id)
