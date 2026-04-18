@@ -79,9 +79,10 @@ open_full_keyboard = InlineKeyboardMarkup(
     ]
 )
 
+# ВАЖНО: отдельный callback именно для платного вступления предназначения
 purpose_intro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_number")]
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_number_paid")]
     ]
 )
 
@@ -191,19 +192,19 @@ async def send_paid_flow(message: Message, data: dict):
     )
 
 
-async def send_purpose_number(callback: CallbackQuery, data: dict):
+async def send_purpose_number_message(message: Message, data: dict):
     purpose = ensure_purpose(data)
 
     if purpose is None:
-        await callback.message.answer("Не удалось определить предназначение.")
+        await message.answer("Не удалось определить предназначение.")
         return
 
     purpose_text = PURPOSE_TEXTS.get(purpose)
     if not purpose_text:
-        await callback.message.answer(f"Не найден текст для числа предназначения {purpose}.")
+        await message.answer(f"Не найден текст для числа предназначения {purpose}.")
         return
 
-    await callback.message.answer(
+    await message.answer(
         f"Предназначение этого человека — {purpose}\n\n{purpose_text}",
         reply_markup=purpose_number_keyboard
     )
@@ -251,14 +252,8 @@ async def start_handler(message: Message):
         )
 
         if stage == "purpose_number_shown":
-            purpose = ensure_purpose(data)
-            purpose_text = PURPOSE_TEXTS.get(purpose)
-            if purpose and purpose_text:
-                await message.answer(
-                    f"Предназначение этого человека — {purpose}\n\n{purpose_text}",
-                    reply_markup=purpose_number_keyboard
-                )
-                return
+            await send_purpose_number_message(message, data)
+            return
 
         if stage == "purpose_outro_shown":
             await message.answer(
@@ -452,7 +447,7 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
 # =========================
 # ПРЕДНАЗНАЧЕНИЕ — ЧАСТЬ 2
 # =========================
-@dp.callback_query(lambda c: c.data == "show_purpose_number")
+@dp.callback_query(lambda c: c.data in ["show_purpose_number", "show_purpose_number_paid"])
 async def show_purpose_number_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
@@ -462,10 +457,27 @@ async def show_purpose_number_handler(callback: CallbackQuery):
         return
 
     if not data.get("date"):
-        await callback.message.answer("Сначала введите дату рождения.")
+        await callback.message.answer("Ошибка данных. Введите дату заново.")
+        data["stage"] = "awaiting_date_after_payment"
         return
 
-    await send_purpose_number(callback, data)
+    purpose = ensure_purpose(data)
+
+    if purpose is None:
+        await callback.message.answer("Ошибка расчёта. Попробуйте снова.")
+        return
+
+    purpose_text = PURPOSE_TEXTS.get(purpose)
+
+    if not purpose_text:
+        await callback.message.answer(f"Не найден текст для числа предназначения {purpose}.")
+        return
+
+    await callback.message.answer(
+        f"Предназначение этого человека — {purpose}\n\n{purpose_text}",
+        reply_markup=purpose_number_keyboard
+    )
+    data["stage"] = "purpose_number_shown"
 
 
 # =========================
