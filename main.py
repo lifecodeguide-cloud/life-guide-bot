@@ -1,10 +1,147 @@
+
+
+
+
+Вот в чем проблема почему бот запускается по второму разу и зависает - в это втором старте, который помходит после оплаты - это как бы бот в боте. 
+Надо просто починить маин код
+
+Thought for 8s
+Да. Проблема почти точно в этом:
+
+после оплаты у тебя снова срабатывает /start,
+и главный бот начинает цепочку с начала, вместо того чтобы продолжить с места после оплаты.
+
+Из-за этого получается:
+
+первый бот уже довёл человека до оплаты;
+
+второй бот оплату провёл;
+
+потом снова идёт /start;
+
+у пользователя сбрасывается состояние;
+
+бот как будто “запускается внутри самого себя” и дальше висит.
+
+Что должно быть вместо этого:
+
+после успешной оплаты нельзя отправлять пользователя в обычный /start.
+Нужно в main:
+
+найти пользователя по telegram_id,
+
+поставить ему paid = True,
+
+сохранить, что он дошёл до блока после оплаты,
+
+сразу отправить:
+
+Оплата прошла успешно ✅
+
+Продолжаем 👇
+
+PURPOSE_INTRO
+
+кнопку Дальше
+
+То есть логика должна быть не такая:
+
+успешная оплата -> /start -> всё заново
+
+а такая:
+
+успешная оплата -> отметить оплату -> продолжить сценарий
+
+Признак, что ошибка именно в этом, видно по твоему скриншоту:
+после оплаты бот реально снова получает /start.
+
+Что надо проверить в main-коде:
+
+обработчик /start
+
+обработчик успешной оплаты
+
+место, где после оплаты вызывается переход обратно в main
+
+не стоит ли там что-то вроде:
+
+отправки /start
+
+start_handler(...)
+
+сброса state.clear()
+
+повторной инициализации пользователя как нового
+
+Правильная идея для main:
+
+# после подтверждения оплаты
+user.paid = True
+user.current_step = "purpose_intro"
+save_user(user)
+
+await bot.send_message(chat_id, "Оплата прошла успешно ✅\n\nПродолжаем 👇")
+await bot.send_message(
+    chat_id,
+    PURPOSE_INTRO,
+    reply_markup=purpose_intro_keyboard
+)
+А в /start надо сделать защиту, чтобы он не ломал уже оплаченного пользователя. Например:
+
+if user.paid and user.current_step == "purpose_intro":
+    await message.answer(
+        PURPOSE_INTRO,
+        reply_markup=purpose_intro_keyboard
+    )
+    return
+Но лучше вообще не заходить через /start после оплаты.
+
+Сейчас тебе нужно чинить не тексты и не кнопки, а именно маршрут после оплаты:
+убрать второй старт и заменить его на прямое продолжение сценария в main.
+
+Пришли мне теперь только 3 куска кода:
+
+обработчик /start
+
+обработчик успешной оплаты / successful_payment / webhook после PayPal
+
+место, где один бот передаёт пользователя обратно в main
+
+И я тебе скажу точно, какие строки заменить, без переписывания всего заново.
+
+
+
+Pasted code.py
+Python
+переделай как надо в контексте вышесказанного
+
+Thought for 11s
+Да — тут надо чинить именно логику main, а не кнопки.
+Я переделала твой код так, чтобы после оплаты не запускался второй сценарий поверх первого, а пользователь продолжал тот же путь. Основа взята из твоего файла 
+
+
+Что исправлено:
+
+/start paid больше не запускает бот заново как нового пользователя
+
+добавлен stage, чтобы понимать, где человек находится
+
+после оплаты ставится paid = True и открывается нужный блок
+
+напоминания больше не шлются после оплаты
+
+если человек уже оплатил, продажа повторно не показывается
+
+если после оплаты снова пришёл /start paid, бот не ломается и не уходит в цикл
+
+Вот готовый цельный файл, который можно вставить вместо текущего:
+
 import asyncio
 import re
 from datetime import datetime
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-
 
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
@@ -15,6 +152,20 @@ from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
 # ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ
 # =========================
 user_data = {}
+
+
+def get_user(user_id: int):
+    if user_id not in user_data:
+        user_data[user_id] = {
+            "date": None,
+            "soul": None,
+            "expression": None,
+            "purpose": None,
+            "paid": False,
+            "paid_shown": False,
+            "stage": "new",  # new / date_entered / soul_shown / expression_intro_shown / expression_shown / sales_shown / purpose_intro_shown / purpose_number_shown / purpose_outro_shown / next_block_shown
+        }
+    return user_data[user_id]
 
 
 # =========================
@@ -39,13 +190,11 @@ soul_intro_keyboard = InlineKeyboardMarkup(
     ]
 )
 
-
 soul_result_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_expression_intro")]
     ]
 )
-
 
 expression_intro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -53,13 +202,11 @@ expression_intro_keyboard = InlineKeyboardMarkup(
     ]
 )
 
-
 open_full_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Дальше ➡️", callback_data="open_sales")]
     ]
 )
-
 
 purpose_intro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -67,13 +214,11 @@ purpose_intro_keyboard = InlineKeyboardMarkup(
     ]
 )
 
-
 purpose_number_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_outro")]
     ]
 )
-
 
 purpose_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -93,7 +238,6 @@ START_TEXT = (
     "внутреннюю природу и жизненный путь.👇\n\n"
 )
 
-
 SALES_TEXT = (
     "Если вы хотите больше понять себя, свои отношения и выборы:\n\n"
     "• базовую природу и внутренний импульс\n"
@@ -104,7 +248,6 @@ SALES_TEXT = (
     "• своё предназначение и более глубокие жизненные сценарии\n\n"
     "Доступ к полному разбору за 4,99 👇"
 )
-
 
 NEXT_BLOCK_TEXT = (
     "Здесь будет следующий блок после предназначения.\n\n"
@@ -138,12 +281,39 @@ def calculate_purpose(date_str: str) -> int:
     return reduce_to_digit(total)
 
 
+async def send_paid_flow(message: Message, data: dict):
+    """
+    Продолжение после оплаты.
+    Никакого повторного запуска полной воронки.
+    """
+    if data.get("paid_shown"):
+        return
+
+    data["paid"] = True
+    data["paid_shown"] = True
+    data["stage"] = "purpose_intro_shown"
+
+    await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
+    await message.answer(
+        PURPOSE_INTRO,
+        reply_markup=purpose_intro_keyboard
+    )
+
+
+def has_calculation_data(data: dict) -> bool:
+    return (
+        data.get("date") is not None
+        and data.get("soul") is not None
+        and data.get("expression") is not None
+        and data.get("purpose") is not None
+    )
+
+
 # =========================
 # BOT / DP
 # =========================
 import os
 TOKEN = os.getenv("BOT_TOKEN")
-
 
 dp = Dispatcher()
 
@@ -153,30 +323,75 @@ dp = Dispatcher()
 # =========================
 @dp.message(CommandStart())
 async def start_handler(message: Message):
-    if message.text and message.text.startswith("/start paid"):
-        user_id = message.from_user.id
-        data = user_data.get(user_id)
+    user_id = message.from_user.id
+    data = get_user(user_id)
+    text = (message.text or "").strip()
 
+    # ВАЖНО:
+    # после оплаты НЕ запускаем общий старт заново,
+    # а продолжаем сценарий с нужного места
+    if text.startswith("/start paid"):
+        if not has_calculation_data(data):
+            data["paid"] = True
+            data["paid_shown"] = True
+            data["stage"] = "awaiting_date_after_payment"
 
-        if not data:
-            await message.answer("Оплата прошла успешно ✅")
+            await message.answer(
+                "Оплата прошла успешно ✅\n\n"
+                "Теперь отправьте дату рождения в формате ДД.ММ.ГГГГ"
+            )
             return
 
-
-        if data.get("paid_shown"):
-            return
-
-
-        data["paid_shown"] = True
-
-
-        await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
-        await message.answer(
-            PURPOSE_INTRO,
-            reply_markup=purpose_intro_keyboard
-        )
+        await send_paid_flow(message, data)
         return
 
+    # Если человек уже оплатил и снова нажал /start — не сбрасываем его
+    if data.get("paid"):
+        if has_calculation_data(data):
+            await message.answer(
+                "Вы уже открыли полный разбор ✅\n\n"
+                "Продолжаем с того места, где остановились 👇"
+            )
+
+            stage = data.get("stage")
+
+            if stage in ["purpose_intro_shown", "sales_shown", "expression_shown"]:
+                await message.answer(
+                    PURPOSE_INTRO,
+                    reply_markup=purpose_intro_keyboard
+                )
+                return
+
+            if stage == "purpose_number_shown":
+                purpose = data["purpose"]
+                text = (
+                    f"Предназначение этого человека — {purpose}\n\n"
+                    f"{PURPOSE_TEXTS[purpose]}"
+                )
+                await message.answer(
+                    text,
+                    reply_markup=purpose_number_keyboard
+                )
+                return
+
+            if stage == "purpose_outro_shown":
+                await message.answer(
+                    PURPOSE_OUTRO,
+                    reply_markup=purpose_outro_keyboard
+                )
+                return
+
+            await message.answer(
+                PURPOSE_INTRO,
+                reply_markup=purpose_intro_keyboard
+            )
+            return
+        else:
+            await message.answer(
+                "Оплата уже прошла успешно ✅\n\n"
+                "Теперь отправьте дату рождения в формате ДД.ММ.ГГГГ"
+            )
+            return
 
     await message.answer(START_TEXT)
     await message.answer("Введите дату рождения в формате ДД.ММ.ГГГГ")
@@ -190,7 +405,6 @@ async def date_handler(message: Message):
     text = (message.text or "").strip()
     digits = re.sub(r"\D", "", text)
 
-
     if len(digits) != 8:
         await message.answer(
             "Введите дату рождения.\n"
@@ -198,14 +412,11 @@ async def date_handler(message: Message):
         )
         return
 
-
     day = digits[0:2]
     month = digits[2:4]
     year = digits[4:8]
 
-
     date_str = f"{day}.{month}.{year}"
-
 
     try:
         datetime.strptime(date_str, "%d.%m.%Y")
@@ -213,33 +424,39 @@ async def date_handler(message: Message):
         await message.answer("Такой даты не существует. Проверьте ввод.")
         return
 
-
     soul_number = calculate_soul(day)
     expression_number = calculate_expression(date_str)
     purpose_number = calculate_purpose(date_str)
 
+    old_data = get_user(message.from_user.id)
 
     user_data[message.from_user.id] = {
         "date": date_str,
         "soul": soul_number,
         "expression": expression_number,
         "purpose": purpose_number,
-        "paid_shown": False,
+        "paid": old_data.get("paid", False),
+        "paid_shown": old_data.get("paid_shown", False),
+        "stage": "date_entered",
     }
 
+    data = user_data[message.from_user.id]
 
     await message.answer("⏳ Анализируем данные...")
     await asyncio.sleep(2)
     await message.answer("Почти готово...")
     await asyncio.sleep(2)
 
-
     await message.answer(f"Дата принята ✅\n{date_str}")
     await asyncio.sleep(1)
 
+    # Если человек уже оплатил раньше — сразу продолжаем платную часть
+    if data.get("paid"):
+        await send_paid_flow(message, data)
+        return
 
     await message.answer(SOUL_INTRO, reply_markup=soul_intro_keyboard)
-
+    data["stage"] = "soul_intro_shown"
 
     asyncio.create_task(remind_later(message))
     asyncio.create_task(remind_next_day(message))
@@ -253,20 +470,18 @@ async def show_soul_handler(callback: CallbackQuery):
     user_id = callback.from_user.id
     data = user_data.get(user_id)
 
-
     if not data:
         await callback.message.answer("Сначала введите дату рождения.")
         await callback.answer()
         return
 
-
     soul = data["soul"]
-
 
     await callback.message.answer(
         SOUL_TEXTS[soul],
         reply_markup=soul_result_keyboard
     )
+    data["stage"] = "soul_shown"
     await callback.answer()
 
 
@@ -275,6 +490,12 @@ async def show_soul_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_expression_intro")
 async def show_expression_intro_handler(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    data = user_data.get(user_id)
+
+    if data:
+        data["stage"] = "expression_intro_shown"
+
     await callback.message.answer(
         EXPRESSION_INTRO,
         reply_markup=expression_intro_keyboard
@@ -290,20 +511,18 @@ async def show_expression_handler(callback: CallbackQuery):
     user_id = callback.from_user.id
     data = user_data.get(user_id)
 
-
     if not data:
         await callback.message.answer("Сначала введите дату рождения.")
         await callback.answer()
         return
 
-
     expression = data["expression"]
-
 
     await callback.message.answer(
         EXPRESSION_TEXTS[expression],
         reply_markup=open_full_keyboard
     )
+    data["stage"] = "expression_shown"
     await callback.answer()
 
 
@@ -315,16 +534,29 @@ async def open_sales_handler(callback: CallbackQuery):
     user_id = callback.from_user.id
     data = user_data.get(user_id)
 
-
-    if data and data.get("paid_shown"):
+    if not data:
+        await callback.message.answer("Сначала введите дату рождения.")
         await callback.answer()
         return
 
+    # Если уже оплачено — больше не показываем продажу, а продолжаем
+    if data.get("paid"):
+        await callback.message.answer(
+            "Оплата уже подтверждена ✅\n\nПродолжаем 👇"
+        )
+        await callback.message.answer(
+            PURPOSE_INTRO,
+            reply_markup=purpose_intro_keyboard
+        )
+        data["stage"] = "purpose_intro_shown"
+        await callback.answer()
+        return
 
     await callback.message.answer(
         SALES_TEXT,
         reply_markup=get_pay_keyboard(user_id)
     )
+    data["stage"] = "sales_shown"
     await callback.answer()
 
 
@@ -333,10 +565,19 @@ async def open_sales_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_purpose_intro")
 async def show_purpose_intro_handler(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    data = user_data.get(user_id)
+
+    if not data or not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        await callback.answer()
+        return
+
     await callback.message.answer(
         PURPOSE_INTRO,
         reply_markup=purpose_intro_keyboard
     )
+    data["stage"] = "purpose_intro_shown"
     await callback.answer()
 
 
@@ -348,37 +589,33 @@ async def show_purpose_number_handler(callback: CallbackQuery):
     user_id = callback.from_user.id
     data = user_data.get(user_id)
 
-
     if not data:
         await callback.message.answer("Сначала введите дату рождения.")
         await callback.answer()
         return
 
+    if not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        await callback.answer()
+        return
 
     purpose = data.get("purpose")
-
 
     if purpose not in PURPOSE_TEXTS:
         await callback.message.answer("Не удалось определить предназначение.")
         await callback.answer()
         return
 
-
     text = (
         f"Предназначение этого человека — {purpose}\n\n"
         f"{PURPOSE_TEXTS[purpose]}"
     )
 
-
     await callback.message.answer(
-    text,
-    reply_markup=InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_outro")]
-        ]
+        text,
+        reply_markup=purpose_number_keyboard
     )
-)
-
+    data["stage"] = "purpose_number_shown"
     await callback.answer()
 
 
@@ -387,10 +624,19 @@ async def show_purpose_number_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_purpose_outro")
 async def show_purpose_outro_handler(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    data = user_data.get(user_id)
+
+    if not data or not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        await callback.answer()
+        return
+
     await callback.message.answer(
         PURPOSE_OUTRO,
         reply_markup=purpose_outro_keyboard
     )
+    data["stage"] = "purpose_outro_shown"
     await callback.answer()
 
 
@@ -399,6 +645,12 @@ async def show_purpose_outro_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_next_block")
 async def show_next_block_handler(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    data = user_data.get(user_id)
+
+    if data:
+        data["stage"] = "next_block_shown"
+
     await callback.message.answer(NEXT_BLOCK_TEXT)
     await callback.answer()
 
@@ -409,6 +661,9 @@ async def show_next_block_handler(callback: CallbackQuery):
 async def remind_later(message: Message):
     await asyncio.sleep(600)
 
+    data = user_data.get(message.from_user.id)
+    if not data or data.get("paid"):
+        return
 
     await message.answer(
         "Вы остановились на самом интересном месте.\n\n"
@@ -421,6 +676,9 @@ async def remind_later(message: Message):
 async def remind_next_day(message: Message):
     await asyncio.sleep(86400)
 
+    data = user_data.get(message.from_user.id)
+    if not data or data.get("paid"):
+        return
 
     await message.answer(
         "Иногда одного первого впечатления мало.\n\n"
@@ -441,3 +699,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+
