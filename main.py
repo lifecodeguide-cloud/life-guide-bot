@@ -10,7 +10,6 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
-from varna_texts import VARNA_INTRO, VARNA_MIX_EXPLANATION, VARNA_RESULT_INTRO, VARNA_FULL_TEXTS
 
 
 # =========================
@@ -114,6 +113,12 @@ SALES_TEXT = (
     "Доступ к полному разбору за 4,99 👇"
 )
 
+NEXT_BLOCK_TEXT = (
+    "Здесь будет следующий блок после предназначения.\n\n"
+    "Сейчас можешь вставить сюда тот текст, который должен открываться "
+    "после кнопки «Самое интересное дальше ➡️»."
+)
+
 
 # =========================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -162,95 +167,6 @@ def ensure_purpose(data: dict):
     return data.get("purpose")
 
 
-# =========================
-# РАСЧЁТ ВАРН
-# =========================
-def get_varna_profile(data: dict):
-    date = data.get("date")
-
-    if not date:
-        return {
-            "brahman": 0,
-            "kshatriya": 0,
-            "vaishya": 0,
-            "shudra": 0,
-        }
-
-    day, month, year = date.split(".")
-
-    # 1. Основные числа
-    soul = reduce_to_digit(int(day))
-
-    destiny = reduce_to_digit(
-        soul
-        + reduce_to_digit(int(month))
-        + reduce_to_digit(sum(int(d) for d in year))
-    )
-
-    month_num = reduce_to_digit(int(month))
-    year_num = reduce_to_digit(sum(int(d) for d in year))
-
-    # 2. Соответствие чисел варнам
-    varna_map = {
-        1: "kshatriya",
-        9: "kshatriya",
-
-        3: "brahman",
-        6: "brahman",
-
-        2: "vaishya",
-        5: "vaishya",
-
-        4: "shudra",
-        7: "shudra",
-        8: "shudra",
-    }
-
-    profile = {
-        "brahman": 0,
-        "kshatriya": 0,
-        "vaishya": 0,
-        "shudra": 0,
-    }
-
-    # 3. Начисляем проценты
-    profile[varna_map[soul]] += 40
-    profile[varna_map[destiny]] += 40
-    profile[varna_map[month_num]] += 10
-    profile[varna_map[year_num]] += 10
-
-    return profile
-
-
-def build_varna_result_text(profile: dict) -> str:
-    return (
-        VARNA_RESULT_INTRO
-        + f"• Брахман (понимание, глубина) — {profile['brahman']}%\n"
-        + f"• Кшатрий (сила, лидерство) — {profile['kshatriya']}%\n"
-        + f"• Вайшья (ресурсы, ценность) — {profile['vaishya']}%\n"
-        + f"• Шудра (созидание, практика) — {profile['shudra']}%\n"
-    )
-
-
-def build_varna_details_text(profile: dict) -> str:
-    details = []
-
-    if profile["brahman"] >= 40:
-        details.append(VARNA_FULL_TEXTS["brahman"])
-
-    if profile["kshatriya"] >= 40:
-        details.append(VARNA_FULL_TEXTS["kshatriya"])
-
-    if profile["vaishya"] >= 40:
-        details.append(VARNA_FULL_TEXTS["vaishya"])
-
-    if profile["shudra"] >= 40:
-        details.append(VARNA_FULL_TEXTS["shudra"])
-
-    if not details:
-        return "Ярко выраженного ведущего психотипа не найдено."
-
-    return "\n\n".join(details)
 async def send_paid_flow(message: Message, data: dict):
     """
     Продолжение после оплаты без повторного общего старта.
@@ -320,52 +236,6 @@ async def start_handler(message: Message):
             await message.answer(
                 PURPOSE_OUTRO,
                 reply_markup=purpose_outro_keyboard
-            )
-            return
-
-        if stage == "varna_intro_shown":
-            await message.answer(
-                VARNA_INTRO,
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="Дальше 👇", callback_data="show_varna_mix")]
-                    ]
-                )
-            )
-            return
-
-        if stage == "varna_mix_shown":
-            await message.answer(
-                VARNA_MIX_EXPLANATION,
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="Расчёты ➡️", callback_data="show_varna_result")]
-                    ]
-                )
-            )
-            return
-
-        if stage == "varna_result_shown":
-            profile = get_varna_profile(data)
-            await message.answer(
-                build_varna_result_text(profile),
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="Подробнее ➡️", callback_data="show_varna_details")]
-                    ]
-                )
-            )
-            return
-
-        if stage == "varna_details_shown":
-            profile = get_varna_profile(data)
-            await message.answer(
-                build_varna_details_text(profile),
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(text="Число судьбы ➡️", callback_data="show_destiny")]
-                    ]
-                )
             )
             return
 
@@ -612,94 +482,14 @@ async def show_purpose_outro_handler(callback: CallbackQuery):
 
 
 # =========================
-# ВАРНЫ — ВСТУПЛЕНИЕ
+# СЛЕДУЮЩИЙ БЛОК
 # =========================
 @dp.callback_query(lambda c: c.data == "show_next_block")
-async def show_varna_intro_handler(callback: CallbackQuery):
+async def show_next_block_handler(callback: CallbackQuery):
     data = get_user(callback.from_user.id)
-    data["stage"] = "varna_intro_shown"
+    data["stage"] = "next_block_shown"
 
-    await callback.message.answer(
-        VARNA_INTRO,
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="Дальше 👇", callback_data="show_varna_mix")]
-            ]
-        )
-    )
-    await callback.answer()
-
-
-# =========================
-# ВАРНЫ — СМЕСЬ
-# =========================
-@dp.callback_query(lambda c: c.data == "show_varna_mix")
-async def show_varna_mix_handler(callback: CallbackQuery):
-    data = get_user(callback.from_user.id)
-    data["stage"] = "varna_mix_shown"
-
-    await callback.message.answer(
-        VARNA_MIX_EXPLANATION,
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="Расчёты ➡️", callback_data="show_varna_result")]
-            ]
-        )
-    )
-    await callback.answer()
-
-
-# =========================
-# ВАРНЫ — РЕЗУЛЬТАТ
-# =========================
-@dp.callback_query(lambda c: c.data == "show_varna_result")
-async def show_varna_result_handler(callback: CallbackQuery):
-    data = get_user(callback.from_user.id)
-    data["stage"] = "varna_result_shown"
-
-    msg = await callback.message.answer("Анализируем… ⏳")
-    await asyncio.sleep(1.5)
-
-    profile = get_varna_profile(data)
-
-    await msg.edit_text(
-        build_varna_result_text(profile),
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="Подробнее ➡️", callback_data="show_varna_details")]
-            ]
-        )
-    )
-    await callback.answer()
-
-
-# =========================
-# ВАРНЫ — ПОДРОБНЕЕ
-# =========================
-@dp.callback_query(lambda c: c.data == "show_varna_details")
-async def show_varna_details_handler(callback: CallbackQuery):
-    data = get_user(callback.from_user.id)
-    data["stage"] = "varna_details_shown"
-
-    profile = get_varna_profile(data)
-
-    await callback.message.answer(
-        build_varna_details_text(profile),
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="Число судьбы ➡️", callback_data="show_destiny")]
-            ]
-        )
-    )
-    await callback.answer()
-
-
-# =========================
-# СЛЕДУЮЩИЙ БЛОК: ЧИСЛО СУДЬБЫ
-# =========================
-@dp.callback_query(lambda c: c.data == "show_destiny")
-async def show_destiny_handler(callback: CallbackQuery):
-    await callback.message.answer("Здесь будет следующий блок: число судьбы.")
+    await callback.message.answer(NEXT_BLOCK_TEXT)
     await callback.answer()
 
 
@@ -750,3 +540,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
