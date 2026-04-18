@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import logging
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
@@ -10,6 +11,12 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
+
+
+# =========================
+# ЛОГИ
+# =========================
+logging.basicConfig(level=logging.INFO)
 
 
 # =========================
@@ -114,9 +121,8 @@ SALES_TEXT = (
 )
 
 NEXT_BLOCK_TEXT = (
-    "Здесь будет следующий блок после предназначения.\n\n"
-    "Сейчас можешь вставить сюда тот текст, который должен открываться "
-    "после кнопки «Самое интересное дальше ➡️»."
+    "Здесь будет блок варн.\n\n"
+    "Сейчас можешь вставить сюда текст или запуск следующего платного блока."
 )
 
 
@@ -155,10 +161,6 @@ def has_calculation_data(data: dict) -> bool:
 
 
 def ensure_purpose(data: dict):
-    """
-    Если purpose почему-то не сохранился,
-    пробуем восстановить его из даты.
-    """
     if data.get("purpose") is None and data.get("date"):
         try:
             data["purpose"] = calculate_purpose(data["date"])
@@ -167,9 +169,16 @@ def ensure_purpose(data: dict):
     return data.get("purpose")
 
 
+async def safe_answer_callback(callback: CallbackQuery):
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+
 async def send_paid_flow(message: Message, data: dict):
     """
-    Продолжение после оплаты без повторного общего старта.
+    Продолжение после оплаты без повторного запуска бесплатной воронки.
     """
     data["paid"] = True
     data["paid_shown"] = True
@@ -180,6 +189,25 @@ async def send_paid_flow(message: Message, data: dict):
         PURPOSE_INTRO,
         reply_markup=purpose_intro_keyboard
     )
+
+
+async def send_purpose_number(callback: CallbackQuery, data: dict):
+    purpose = ensure_purpose(data)
+
+    if purpose is None:
+        await callback.message.answer("Не удалось определить предназначение.")
+        return
+
+    purpose_text = PURPOSE_TEXTS.get(purpose)
+    if not purpose_text:
+        await callback.message.answer(f"Не найден текст для числа предназначения {purpose}.")
+        return
+
+    await callback.message.answer(
+        f"Предназначение этого человека — {purpose}\n\n{purpose_text}",
+        reply_markup=purpose_number_keyboard
+    )
+    data["stage"] = "purpose_number_shown"
 
 
 # =========================
@@ -198,7 +226,7 @@ async def start_handler(message: Message):
     data = get_user(user_id)
     text = (message.text or "").strip()
 
-    # После оплаты не запускаем заново бесплатную воронку
+    # После оплаты: /start paid
     if text.startswith("/start paid"):
         data["paid"] = True
 
@@ -215,19 +243,19 @@ async def start_handler(message: Message):
 
     # Если уже оплатил и снова нажал /start
     if data.get("paid"):
+        stage = data.get("stage")
+
         await message.answer(
             "Вы уже открыли полный разбор ✅\n\n"
             "Продолжаем с того места, где остановились 👇"
         )
 
-        stage = data.get("stage")
-
         if stage == "purpose_number_shown":
             purpose = ensure_purpose(data)
-
-            if purpose in PURPOSE_TEXTS:
+            purpose_text = PURPOSE_TEXTS.get(purpose)
+            if purpose and purpose_text:
                 await message.answer(
-                    f"Предназначение этого человека — {purpose}\n\n{PURPOSE_TEXTS[purpose]}",
+                    f"Предназначение этого человека — {purpose}\n\n{purpose_text}",
                     reply_markup=purpose_number_keyboard
                 )
                 return
@@ -237,6 +265,10 @@ async def start_handler(message: Message):
                 PURPOSE_OUTRO,
                 reply_markup=purpose_outro_keyboard
             )
+            return
+
+        if stage == "next_block_shown":
+            await message.answer(NEXT_BLOCK_TEXT)
             return
 
         await message.answer(
@@ -300,7 +332,7 @@ async def date_handler(message: Message):
     await message.answer(f"Дата принята ✅\n{date_str}")
     await asyncio.sleep(1)
 
-    # Если человек уже оплатил — сразу в платную часть
+    # Если уже оплатил — сразу в платную часть
     if data.get("paid"):
         await send_paid_flow(message, data)
         return
@@ -317,11 +349,11 @@ async def date_handler(message: Message):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_soul")
 async def show_soul_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
 
     if not data.get("date"):
         await callback.message.answer("Сначала введите дату рождения.")
-        await callback.answer()
         return
 
     soul = data["soul"]
@@ -331,7 +363,6 @@ async def show_soul_handler(callback: CallbackQuery):
         reply_markup=soul_result_keyboard
     )
     data["stage"] = "soul_shown"
-    await callback.answer()
 
 
 # =========================
@@ -339,6 +370,7 @@ async def show_soul_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_expression_intro")
 async def show_expression_intro_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
 
     await callback.message.answer(
@@ -346,7 +378,6 @@ async def show_expression_intro_handler(callback: CallbackQuery):
         reply_markup=expression_intro_keyboard
     )
     data["stage"] = "expression_intro_shown"
-    await callback.answer()
 
 
 # =========================
@@ -354,11 +385,11 @@ async def show_expression_intro_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_expression")
 async def show_expression_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
 
     if not data.get("date"):
         await callback.message.answer("Сначала введите дату рождения.")
-        await callback.answer()
         return
 
     expression = data["expression"]
@@ -368,7 +399,6 @@ async def show_expression_handler(callback: CallbackQuery):
         reply_markup=open_full_keyboard
     )
     data["stage"] = "expression_shown"
-    await callback.answer()
 
 
 # =========================
@@ -376,12 +406,12 @@ async def show_expression_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "open_sales")
 async def open_sales_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     user_id = callback.from_user.id
     data = get_user(user_id)
 
     if not data.get("date"):
         await callback.message.answer("Сначала введите дату рождения.")
-        await callback.answer()
         return
 
     if data.get("paid"):
@@ -391,7 +421,6 @@ async def open_sales_handler(callback: CallbackQuery):
             reply_markup=purpose_intro_keyboard
         )
         data["stage"] = "purpose_intro_shown"
-        await callback.answer()
         return
 
     await callback.message.answer(
@@ -399,7 +428,6 @@ async def open_sales_handler(callback: CallbackQuery):
         reply_markup=get_pay_keyboard(user_id)
     )
     data["stage"] = "sales_shown"
-    await callback.answer()
 
 
 # =========================
@@ -407,11 +435,11 @@ async def open_sales_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_purpose_intro")
 async def show_purpose_intro_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
 
     if not data.get("paid"):
         await callback.message.answer("Сначала откройте полный разбор.")
-        await callback.answer()
         return
 
     await callback.message.answer(
@@ -419,7 +447,6 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
         reply_markup=purpose_intro_keyboard
     )
     data["stage"] = "purpose_intro_shown"
-    await callback.answer()
 
 
 # =========================
@@ -427,38 +454,18 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_purpose_number")
 async def show_purpose_number_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
 
     if not data.get("paid"):
         await callback.message.answer("Сначала откройте полный разбор.")
-        await callback.answer()
         return
 
     if not data.get("date"):
         await callback.message.answer("Сначала введите дату рождения.")
-        await callback.answer()
         return
 
-    purpose = ensure_purpose(data)
-
-    if purpose is None:
-        await callback.message.answer("Не удалось определить предназначение.")
-        await callback.answer()
-        return
-
-    purpose_text = PURPOSE_TEXTS.get(purpose)
-
-    if not purpose_text:
-        await callback.message.answer(f"Не найден текст для числа предназначения {purpose}.")
-        await callback.answer()
-        return
-
-    await callback.message.answer(
-        f"Предназначение этого человека — {purpose}\n\n{purpose_text}",
-        reply_markup=purpose_number_keyboard
-    )
-    data["stage"] = "purpose_number_shown"
-    await callback.answer()
+    await send_purpose_number(callback, data)
 
 
 # =========================
@@ -466,11 +473,11 @@ async def show_purpose_number_handler(callback: CallbackQuery):
 # =========================
 @dp.callback_query(lambda c: c.data == "show_purpose_outro")
 async def show_purpose_outro_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
 
     if not data.get("paid"):
         await callback.message.answer("Сначала откройте полный разбор.")
-        await callback.answer()
         return
 
     await callback.message.answer(
@@ -478,19 +485,22 @@ async def show_purpose_outro_handler(callback: CallbackQuery):
         reply_markup=purpose_outro_keyboard
     )
     data["stage"] = "purpose_outro_shown"
-    await callback.answer()
 
 
 # =========================
-# СЛЕДУЮЩИЙ БЛОК
+# СЛЕДУЮЩИЙ БЛОК / ВАРНЫ
 # =========================
 @dp.callback_query(lambda c: c.data == "show_next_block")
 async def show_next_block_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
-    data["stage"] = "next_block_shown"
 
+    if not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        return
+
+    data["stage"] = "next_block_shown"
     await callback.message.answer(NEXT_BLOCK_TEXT)
-    await callback.answer()
 
 
 # =========================
@@ -528,6 +538,15 @@ async def remind_next_day(message: Message):
 
 
 # =========================
+# ОБЩИЙ ХЕНДЛЕР ОШИБОК
+# =========================
+@dp.errors()
+async def errors_handler(event):
+    logging.exception("Ошибка в боте: %s", event.exception)
+    return True
+
+
+# =========================
 # ЗАПУСК
 # =========================
 async def main():
@@ -540,4 +559,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
