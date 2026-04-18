@@ -205,7 +205,7 @@ async def send_purpose_number_message(message: Message, data: dict):
         return
 
     await message.answer(
-        f"Предназначение этого человека — {purpose}\n\n{purpose_text}",
+        f"Предназначение  {purpose}\n\n{purpose_text}",
         reply_markup=purpose_number_keyboard
     )
     data["stage"] = "purpose_number_shown"
