@@ -130,8 +130,6 @@ def home():
     </script>
 </body>
 </html>
-
-
     """, client_id=PAYPAL_CLIENT_ID)
 
 
@@ -197,7 +195,7 @@ def capture_order():
 
 
 # ===== СТРАНИЦА УСПЕХА =====
-@app.route("success")
+@app.route("/success")
 def success():
     return """
     <h1 style='font-family:Arial; text-align:center; margin-top:80px;'>
@@ -212,6 +210,7 @@ def success():
     </script>
     """
 
+
 # ===== PAYPAL WEBHOOK =====
 @app.route("/paypal-webhook", methods=["POST"])
 def paypal_webhook():
@@ -222,4 +221,3 @@ def paypal_webhook():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
