@@ -106,6 +106,11 @@ def create_order():
         },
         json={
             "intent": "CAPTURE",
+            "application_context": {
+                "return_url": f"https://life-guide-pay-2026.onrender.com/success?user_id={user_id}",
+                "cancel_url": f"https://life-guide-pay-2026.onrender.com/?user_id={user_id}"
+            },
+            
             "purchase_units": [
                 {
                     "custom_id": user_id,
