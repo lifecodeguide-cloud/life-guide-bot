@@ -259,10 +259,11 @@ async def start_handler(message: Message):
     if text.startswith("/start paid"):
         match = re.search(r"paid[_-](\d+)", text)
 
-        if match:
-            paid_user_id = int(match.group(1))
-        else:
-            paid_user_id = user_id
+    if not match:
+        await message.answer("Ошибка оплаты. Попробуйте ещё раз.")
+        return
+
+    paid_user_id = int(match.group(1))
 
         data = get_user(paid_user_id)
         data["paid"] = True
