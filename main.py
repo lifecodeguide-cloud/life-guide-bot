@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 import logging
+import json
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
@@ -22,7 +23,28 @@ logging.basicConfig(level=logging.INFO)
 # =========================
 # ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ
 # =========================
+DATA_FILE = "users_data.json"
 user_data = {}
+
+
+def load_user_data():
+    global user_data
+    try:
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                user_data = {int(k): v for k, v in raw.items()}
+    except Exception:
+        logging.exception("Не удалось загрузить users_data.json")
+        user_data = {}
+
+
+def save_user_data():
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(user_data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        logging.exception("Не удалось сохранить users_data.json")
 
 
 def get_user(user_id: int):
@@ -36,7 +58,15 @@ def get_user(user_id: int):
             "paid_shown": False,
             "stage": "new",
         }
+        save_user_data()
     return user_data[user_id]
+
+
+def mark_paid(user_id: int):
+    data = get_user(user_id)
+    data["paid"] = True
+    save_user_data()
+    return data
 
 
 # =========================
@@ -186,6 +216,7 @@ async def send_paid_flow(message: Message, data: dict):
     data["paid"] = True
     data["paid_shown"] = True
     data["stage"] = "purpose_intro_shown"
+    save_user_data()
 
     await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
     await message.answer(
@@ -211,6 +242,7 @@ async def send_purpose_number(callback: CallbackQuery, data: dict):
         reply_markup=purpose_number_keyboard
     )
     data["stage"] = "purpose_number_shown"
+    save_user_data()
 
 
 # =========================
@@ -229,12 +261,28 @@ async def start_handler(message: Message):
     data = get_user(user_id)
     text = (message.text or "").strip()
 
-    # Запасной вариант после оплаты через /start paid
+    # Возврат после оплаты через deep-link:
+    # /start paid или /start paid_123456789
     if text.startswith("/start paid"):
-        data["paid"] = True
+        paid_user_id = user_id
+
+        match = re.search(r"paid[_-](\d+)", text)
+        if match:
+            paid_user_id = int(match.group(1))
+
+        data = mark_paid(paid_user_id)
+
+        if paid_user_id != user_id:
+            await message.answer(
+                "Оплата подтверждена ✅\n\n"
+                "Но ссылка оплаты открыта не тем Telegram-пользователем. "
+                "Откройте продолжение из того Telegram, где вводилась дата рождения."
+            )
+            return
 
         if not has_calculation_data(data):
             data["stage"] = "awaiting_date_after_payment"
+            save_user_data()
             await message.answer(
                 "Оплата прошла успешно ✅\n\n"
                 "Теперь отправьте дату рождения в формате ДД.ММ.ГГГГ"
@@ -295,6 +343,7 @@ async def paid_continue_handler(callback: CallbackQuery):
     data = get_user(user_id)
 
     data["paid"] = True
+    save_user_data()
 
     if not has_calculation_data(data):
         data["stage"] = "awaiting_date_after_payment"
@@ -348,6 +397,7 @@ async def date_handler(message: Message):
         "paid_shown": old_data.get("paid_shown", False),
         "stage": "date_entered",
     }
+    save_user_data()
 
     data = get_user(message.from_user.id)
 
@@ -364,6 +414,7 @@ async def date_handler(message: Message):
 
     await message.answer(SOUL_INTRO, reply_markup=soul_intro_keyboard)
     data["stage"] = "soul_intro_shown"
+    save_user_data()
 
     asyncio.create_task(remind_later(message))
     asyncio.create_task(remind_next_day(message))
@@ -388,6 +439,7 @@ async def show_soul_handler(callback: CallbackQuery):
         reply_markup=soul_result_keyboard
     )
     data["stage"] = "soul_shown"
+    save_user_data()
 
 
 # =========================
@@ -403,6 +455,7 @@ async def show_expression_intro_handler(callback: CallbackQuery):
         reply_markup=expression_intro_keyboard
     )
     data["stage"] = "expression_intro_shown"
+    save_user_data()
 
 
 # =========================
@@ -424,6 +477,7 @@ async def show_expression_handler(callback: CallbackQuery):
         reply_markup=open_full_keyboard
     )
     data["stage"] = "expression_shown"
+    save_user_data()
 
 
 # =========================
@@ -446,6 +500,7 @@ async def open_sales_handler(callback: CallbackQuery):
             reply_markup=purpose_intro_keyboard
         )
         data["stage"] = "purpose_intro_shown"
+        save_user_data()
         return
 
     await callback.message.answer(
@@ -453,6 +508,7 @@ async def open_sales_handler(callback: CallbackQuery):
         reply_markup=get_pay_keyboard(user_id)
     )
     data["stage"] = "sales_shown"
+    save_user_data()
 
 
 # =========================
@@ -472,6 +528,7 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
         reply_markup=purpose_intro_keyboard
     )
     data["stage"] = "purpose_intro_shown"
+    save_user_data()
 
 
 # =========================
@@ -510,6 +567,7 @@ async def show_purpose_outro_handler(callback: CallbackQuery):
         reply_markup=purpose_outro_keyboard
     )
     data["stage"] = "purpose_outro_shown"
+    save_user_data()
 
 
 # =========================
@@ -525,6 +583,7 @@ async def show_next_block_handler(callback: CallbackQuery):
         return
 
     data["stage"] = "next_block_shown"
+    save_user_data()
     await callback.message.answer(NEXT_BLOCK_TEXT)
 
 
@@ -577,6 +636,8 @@ async def errors_handler(event):
 async def main():
     if not TOKEN:
         raise ValueError("BOT_TOKEN не найден в переменных окружения")
+
+    load_user_data()
 
     bot = Bot(token=TOKEN)
     await dp.start_polling(bot)
