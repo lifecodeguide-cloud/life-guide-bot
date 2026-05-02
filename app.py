@@ -11,16 +11,19 @@ PAYPAL_API_BASE = "https://api-m.paypal.com"   # LIVE
 PRICE = "4.99"
 
 
-# ===== ГЛАВНАЯ СТРАНИЦА =====
+# ===== ГЛАВНАЯ СТРАНИЦА ОПЛАТЫ =====
 @app.route("/")
 def home():
+    user_id = request.args.get("user_id", "")
+
     return render_template_string("""
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Оплата доступа</title>
+
     <script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&currency=USD"></script>
 
     <style>
@@ -45,7 +48,7 @@ def home():
         }
 
         h1 {
-            font-size: 34px;
+            font-size: 42px;
             margin-bottom: 18px;
         }
 
@@ -62,36 +65,38 @@ def home():
 
         #paypal-button-container {
             margin-top: 20px;
-            max-width: 420px; 
-            margin-left: auto; 
-            margin-right: auto;                                                              
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         @media (max-width: 600px) {
             .text {
                 font-size: 42px;
-                line-height: 1.35;                  
-            }
-            .price {
-                font-size: 58px;
-            }                                                                  
-                                  
-            h1 {
-                font-size: 48px !impotant;
+                line-height: 1.35;
             }
 
-           #paypal-button-container {
-            max-width: 100%;
-            transform: scale (1.18); 
-            transform-origin: top center; 
-            margin-top: 28px;
-            }                                             
+            .price {
+                font-size: 58px;
+            }
+
+            h1 {
+                font-size: 48px !important;
+            }
+
+            #paypal-button-container {
+                max-width: 100%;
+                transform: scale(1.18);
+                transform-origin: top center;
+                margin-top: 28px;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="box">
-        <h1 style="font-size: 42px; margin-botton: 18px;">Life Guide ✨</h1>
+        <h1>Life Guide ✨</h1>
 
         <div class="text">
             Чтобы получить полный разбор,<br>
@@ -102,9 +107,11 @@ def home():
     </div>
 
     <script>
+        const USER_ID = "{{ user_id }}";
+
         paypal.Buttons({
             createOrder: function(data, actions) {
-                return fetch('/create-order', {
+                return fetch('/create-order?user_id=' + USER_ID, {
                     method: 'post'
                 })
                 .then(res => res.json())
@@ -112,7 +119,7 @@ def home():
             },
 
             onApprove: function(data, actions) {
-                return fetch('/capture-order', {
+                return fetch('/capture-order?user_id=' + USER_ID, {
                     method: 'post',
                     headers: {
                         'Content-Type': 'application/json'
@@ -123,14 +130,14 @@ def home():
                 })
                 .then(res => res.json())
                 .then(data => {
-                    window.location.href = "/success";
+                    window.location.href = "/success?user_id=" + USER_ID;
                 });
             }
         }).render('#paypal-button-container');
     </script>
 </body>
 </html>
-    """, client_id=PAYPAL_CLIENT_ID)
+    """, client_id=PAYPAL_CLIENT_ID, user_id=user_id)
 
 
 # ===== ПОЛУЧИТЬ ACCESS TOKEN =====
@@ -144,12 +151,15 @@ def get_paypal_access_token():
         data={"grant_type": "client_credentials"},
         auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET)
     )
+
+    response.raise_for_status()
     return response.json()["access_token"]
 
 
 # ===== СОЗДАТЬ ЗАКАЗ =====
 @app.route("/create-order", methods=["POST"])
 def create_order():
+    user_id = request.args.get("user_id", "")
     access_token = get_paypal_access_token()
 
     response = requests.post(
@@ -162,6 +172,7 @@ def create_order():
             "intent": "CAPTURE",
             "purchase_units": [
                 {
+                    "custom_id": user_id,
                     "amount": {
                         "currency_code": "USD",
                         "value": PRICE
@@ -177,7 +188,9 @@ def create_order():
 # ===== ПОДТВЕРДИТЬ ОПЛАТУ =====
 @app.route("/capture-order", methods=["POST"])
 def capture_order():
+    user_id = request.args.get("user_id", "")
     order_id = request.json.get("orderID")
+
     access_token = get_paypal_access_token()
 
     response = requests.post(
@@ -190,6 +203,7 @@ def capture_order():
 
     data = response.json()
     print("PAYMENT CAPTURED:", data)
+    print("PAID USER_ID:", user_id)
 
     return data
 
@@ -197,16 +211,18 @@ def capture_order():
 # ===== СТРАНИЦА УСПЕХА =====
 @app.route("/success")
 def success():
-    return """
+    user_id = request.args.get("user_id", "")
+
+    return f"""
     <h1 style='font-family:Arial; text-align:center; margin-top:80px;'>
     Оплата прошла успешно ✅<br><br>
     Возвращаем вас в Telegram...
     </h1>
 
     <script>
-    setTimeout(function() {
-        window.location.href = "https://t.me/Life_Guide?start=paid";
-    }, 2000);
+    setTimeout(function() {{
+        window.location.href = "https://t.me/Life_Guide?start=paid_{user_id}";
+    }}, 2000);
     </script>
     """
 
