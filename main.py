@@ -818,15 +818,6 @@ async def show_final_real_handler(callback: CallbackQuery):
         DESTINY_OUTRO,
         reply_markup=final_keyboard
     )
-@dp.callback_query(lambda c: c.data == "show_final_outro")
-async def show_final_outro_handler(callback: CallbackQuery):
-
-    await safe_answer_callback(callback)
-
-    await callback.message.answer(
-        FINAL_OUTRO,
-        reply_markup=final_keyboard
-    )
 
 # =========================
 # НАПОМИНАНИЯ
