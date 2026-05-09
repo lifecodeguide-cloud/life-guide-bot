@@ -139,7 +139,7 @@ destiny_text_keyboard = InlineKeyboardMarkup(
 
 destiny_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Что дальше ✨", callback_data="show_final_real")]
+        [InlineKeyboardButton(text="Важно помнить", callback_data="show_final_real")]
     ]
 )
 
@@ -826,7 +826,7 @@ async def show_destiny_text_handler(callback: CallbackQuery):
     destiny_text = DESTINY_TEXTS.get(destiny)
 
     await callback.message.answer(
-        f"Число судьбы {destiny}\n\n{destiny_text}",
+        f"{destiny_text}",
         reply_markup=destiny_outro_keyboard
     )
 
