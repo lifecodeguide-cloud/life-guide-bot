@@ -12,6 +12,7 @@ from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
 from destiny_texts import DESTINY_INTRO, DESTINY_TEXTS, DESTINY_OUTRO
+from final_texts import FINAL_OUTRO
 from varna_texts import (
     VARNA_INTRO,
     VARNA_MIX_EXPLANATION,
