@@ -182,7 +182,7 @@ def calculate_varna(date_str: str):
 
     soul_number = reduce_to_digit(day)
 
-    expression_number = reduce_to_digit(day + month)
+    month_number = reduce_to_digit(month)
 
     year_number = reduce_to_digit(
         sum(int(d) for d in str(year))
@@ -201,7 +201,7 @@ def calculate_varna(date_str: str):
 
     calculations = [
         (soul_number, 40),
-        (expression_number, 10),
+        (month_number, 10),
         (year_number, 10),
         (destiny_number, 40),
     ]
