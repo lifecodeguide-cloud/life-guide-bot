@@ -133,7 +133,7 @@ destiny_intro_keyboard = InlineKeyboardMarkup(
 
 destiny_text_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Важно помнить", callback_data="show_destiny_outro")]
+        [InlineKeyboardButton(text="Ваше число судьбы", callback_data="show_destiny_outro")]
     ]
 )
 
