@@ -836,7 +836,7 @@ async def show_final_real_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
 
     await callback.message.answer(
-        DESTINY_OUTRO,
+        FINAL_OUTRO,
         reply_markup=final_keyboard
     )
 
