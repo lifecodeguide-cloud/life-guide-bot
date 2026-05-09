@@ -342,7 +342,10 @@ def calculate_purpose(date_str: str) -> int:
     day, month, year = date_str.split(".")
     total = sum(int(d) for d in day + month)
     return reduce_to_digit(total)
-
+    
+def calculate_destiny(date_str: str) -> int:
+    total = sum(int(d) for d in date_str if d.isdigit())
+    return reduce_to_digit(total)
 
 def has_calculation_data(data: dict) -> bool:
     return (
