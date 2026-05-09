@@ -788,9 +788,9 @@ async def show_destiny_text_handler(callback: CallbackQuery):
     destiny_text = DESTINY_TEXTS.get(destiny)
 
     await callback.message.answer(
-        DESTINY_INTRO,
-        reply_markup=destiny_text_keyboard
-    )
+    f"{DESTINY_INTRO}\n\n{destiny_text}",
+    reply_markup=destiny_text_keyboard
+)
 
     data["destiny_number"] = destiny
 
