@@ -154,7 +154,13 @@ final_keyboard = InlineKeyboardMarkup(
         [
             InlineKeyboardButton(
                 text="❤️ Совместимость",
-                url="https://t.me/LoveGuideVitaBot"
+                url="https://t.me/love_guide_bot"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔄 Рассчитать другую дату",
+                url="https://t.me/LifeGuideVitaBot"
             )
         ]
     ]
