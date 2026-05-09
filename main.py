@@ -11,7 +11,13 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
-
+from varna_texts import (
+    VARNA_INTRO,
+    VARNA_MIX_EXPLANATION,
+    VARNA_RESULT_INTRO,
+    VARNA_FULL_TEXTS,
+    VARNA_SECONDARY_TEXTS,
+)
 
 # =========================
 # ЛОГИ
@@ -138,6 +144,140 @@ NEXT_BLOCK_TEXT = (
 # =========================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # =========================
+VARNA_NUMBERS = {
+    "brahman": [3, 6],
+    "kshatriya": [1, 9],
+    "vaishya": [2, 5],
+    "shudra": [4, 7, 8],
+}
+
+VARNA_NAMES = {
+    "brahman": "Брахман / Путь Мудреца",
+    "kshatriya": "Кшатрий / Путь Лидера-Воина",
+    "vaishya": "Вайшья / Путь Бизнесмена",
+    "shudra": "Шудра / Путь Творца-Созидателя",
+}
+
+VARNA_SHORT_NAMES = {
+    "brahman": "Брахман",
+    "kshatriya": "Кшатрий",
+    "vaishya": "Вайшья",
+    "shudra": "Шудра",
+}
+
+
+def get_varna_by_number(number):
+    for varna, numbers in VARNA_NUMBERS.items():
+        if number in numbers:
+            return varna
+    return None
+
+def calculate_varna(date_str: str):
+
+    day, month, year = date_str.split(".")
+
+    day = int(day)
+    month = int(month)
+    year = int(year)
+
+    soul_number = reduce_to_digit(day)
+
+    expression_number = reduce_to_digit(day + month)
+
+    year_number = reduce_to_digit(
+        sum(int(d) for d in str(year))
+    )
+
+    destiny_number = reduce_to_digit(
+        sum(int(d) for d in date_str if d.isdigit())
+    )
+
+    scores = {
+        "brahman": 0,
+        "kshatriya": 0,
+        "vaishya": 0,
+        "shudra": 0,
+    }
+
+    calculations = [
+        (soul_number, 40),
+        (expression_number, 10),
+        (year_number, 10),
+        (destiny_number, 40),
+    ]
+
+    for number, percent in calculations:
+
+        varna = get_varna_by_number(number)
+
+        if varna:
+            scores[varna] += percent
+
+    return scores
+
+def build_varna_result_text(date_str: str):
+
+    scores = calculate_varna(date_str)
+
+    sorted_scores = sorted(
+        scores.items(),
+        key=lambda item: item[1],
+        reverse=True
+    )
+
+    main_varna = sorted_scores[0][0]
+    main_score = sorted_scores[0][1]
+
+    second_varna = sorted_scores[1][0]
+    second_score = sorted_scores[1][1]
+
+    top_varnas = [
+        varna for varna, score in scores.items()
+        if score == main_score
+    ]
+
+    text = ""
+    text += VARNA_INTRO + "\n\n"
+    text += VARNA_MIX_EXPLANATION + "\n\n"
+    text += VARNA_RESULT_INTRO
+
+    text += "Итоговое распределение:\n"
+    text += f"Брахман: {scores['brahman']}%\n"
+    text += f"Кшатрий: {scores['kshatriya']}%\n"
+    text += f"Вайшья: {scores['vaishya']}%\n"
+    text += f"Шудра: {scores['shudra']}%\n\n"
+
+    if len(top_varnas) > 1:
+        names = " и ".join(VARNA_SHORT_NAMES[v] for v in top_varnas)
+
+        text += (
+            f"По данной методике у вас смешанный тип: {names}.\n\n"
+            "Это значит, что в вашей природе одновременно сильны два направления.\n"
+            "Иногда они могут поддерживать друг друга, а иногда — тянуть в разные стороны.\n"
+            "Это не ошибка расчёта, а особенность внутреннего устройства.\n\n"
+        )
+
+        for varna in top_varnas:
+            text += VARNA_FULL_TEXTS[varna] + "\n\n"
+
+        return text
+
+    text += (
+        f"По данной методике ваш основной психотип:\n"
+        f"{VARNA_NAMES[main_varna]} — {main_score}%\n\n"
+    )
+
+    text += VARNA_FULL_TEXTS[main_varna] + "\n\n"
+
+    if second_score >= 20:
+        text += (
+            f"Дополнительное влияние: "
+            f"{VARNA_SHORT_NAMES[second_varna]} — {second_score}%\n\n"
+        )
+        text += VARNA_SECONDARY_TEXTS[second_varna] + "\n\n"
+
+    return text
+
 def reduce_to_digit(num: int) -> int:
     while num > 9:
         num = sum(int(d) for d in str(num))
@@ -537,7 +677,8 @@ async def show_next_block_handler(callback: CallbackQuery):
         return
 
     data["stage"] = "next_block_shown"
-    await callback.message.answer(NEXT_BLOCK_TEXT)
+    varna_text = build_varna_result_text(data["date"])
+    await callback.message.answer(varna_text)
 
 
 # =========================
