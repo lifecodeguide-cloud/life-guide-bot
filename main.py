@@ -139,7 +139,7 @@ destiny_text_keyboard = InlineKeyboardMarkup(
 
 destiny_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Финал ✨", callback_data="show_final_outro")]
+        [InlineKeyboardButton(text="Что дальше ✨", callback_data="show_final_outro")]
     ]
 )
 
