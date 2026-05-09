@@ -11,6 +11,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
+from destiny_texts import DESTINY_INTRO, DESTINY_TEXTS, DESTINY_OUTRO
 from varna_texts import (
     VARNA_INTRO,
     VARNA_MIX_EXPLANATION,
@@ -123,7 +124,40 @@ varna_mix_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Посмотреть результат ➡️", callback_data="show_varna_result")]
     ]
 )
+destiny_intro_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_destiny_text")]
+    ]
+)
 
+destiny_text_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Итог ➡️", callback_data="show_destiny_outro")]
+    ]
+)
+
+destiny_outro_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Финал ✨", callback_data="show_final_outro")]
+    ]
+)
+
+final_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="📤 Поделиться",
+                url="https://t.me/LifeGuideVitaBot"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="❤️ Совместимость",
+                url="https://t.me/LoveGuideVitaBot"
+            )
+        ]
+    ]
+)
 # =========================
 # ТЕКСТЫ
 # =========================
@@ -729,7 +763,53 @@ async def show_varna_result_handler(callback: CallbackQuery):
     data["stage"] = "varna_result_shown"
 
     varna_text = build_varna_result_text(data["date"])
-    await callback.message.answer(varna_text)
+    await callback.message.answer(
+    varna_text,
+    reply_markup=destiny_intro_keyboard
+)
+
+@dp.callback_query(lambda c: c.data == "show_destiny_text")
+async def show_destiny_text_handler(callback: CallbackQuery):
+
+    await safe_answer_callback(callback)
+
+    data = get_user(callback.from_user.id)
+
+    if not data.get("date"):
+        await callback.message.answer("Сначала введите дату рождения.")
+        return
+
+    destiny = calculate_destiny(data["date"])
+
+    destiny_text = DESTINY_TEXTS.get(destiny)
+
+    await callback.message.answer(
+        DESTINY_INTRO,
+        reply_markup=destiny_text_keyboard
+    )
+
+    data["destiny_number"] = destiny
+
+@dp.callback_query(lambda c: c.data == "show_destiny_outro")
+async def show_destiny_outro_handler(callback: CallbackQuery):
+
+    await safe_answer_callback(callback)
+
+    await callback.message.answer(
+        DESTINY_OUTRO,
+        reply_markup=destiny_outro_keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "show_final_outro")
+async def show_final_outro_handler(callback: CallbackQuery):
+
+    await safe_answer_callback(callback)
+
+    await callback.message.answer(
+        FINAL_OUTRO,
+        reply_markup=final_keyboard
+    )
+
 # =========================
 # НАПОМИНАНИЯ
 # =========================
