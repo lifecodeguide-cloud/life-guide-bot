@@ -773,8 +773,7 @@ async def show_varna_result_handler(callback: CallbackQuery):
 )
 
 @dp.callback_query(lambda c: c.data == "show_destiny_text")
-async def show_destiny_text_handler(callback: CallbackQuery):
-
+async def show_destiny_intro_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
 
     data = get_user(callback.from_user.id)
@@ -784,40 +783,41 @@ async def show_destiny_text_handler(callback: CallbackQuery):
         return
 
     destiny = calculate_destiny(data["date"])
-
-    destiny_text = DESTINY_TEXTS.get(destiny)
+    data["destiny_number"] = destiny
 
     await callback.message.answer(
-    DESTINY_INTRO
-    reply_markup=destiny_text_keyboard
-)
+        DESTINY_INTRO,
+        reply_markup=destiny_text_keyboard
+    )
 
-    data["destiny_number"] = destiny
-@dp.callback_query(lambda c: c.data == "show_destiny_text")
+
+@dp.callback_query(lambda c: c.data == "show_destiny_outro")
 async def show_destiny_text_handler(callback: CallbackQuery):
-
     await safe_answer_callback(callback)
 
     data = get_user(callback.from_user.id)
 
     destiny = data.get("destiny_number")
 
+    if destiny is None:
+        destiny = calculate_destiny(data["date"])
+
     destiny_text = DESTINY_TEXTS.get(destiny)
 
     await callback.message.answer(
-        destiny_text,
+        f"Число судьбы {destiny}\n\n{destiny_text}",
         reply_markup=destiny_outro_keyboard
     )
-@dp.callback_query(lambda c: c.data == "show_destiny_outro")
-async def show_destiny_outro_handler(callback: CallbackQuery):
 
+
+@dp.callback_query(lambda c: c.data == "show_final_real")
+async def show_final_real_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
 
     await callback.message.answer(
         DESTINY_OUTRO,
-        reply_markup=destiny_outro_keyboard
+        reply_markup=final_keyboard
     )
-
 @dp.callback_query(lambda c: c.data == "show_final_outro")
 async def show_final_outro_handler(callback: CallbackQuery):
 
