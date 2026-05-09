@@ -788,12 +788,26 @@ async def show_destiny_text_handler(callback: CallbackQuery):
     destiny_text = DESTINY_TEXTS.get(destiny)
 
     await callback.message.answer(
-    f"{DESTINY_INTRO}\n\n{destiny_text}",
+    DESTINY_INTRO
     reply_markup=destiny_text_keyboard
 )
 
     data["destiny_number"] = destiny
+@dp.callback_query(lambda c: c.data == "show_destiny_text")
+async def show_destiny_text_handler(callback: CallbackQuery):
 
+    await safe_answer_callback(callback)
+
+    data = get_user(callback.from_user.id)
+
+    destiny = data.get("destiny_number")
+
+    destiny_text = DESTINY_TEXTS.get(destiny)
+
+    await callback.message.answer(
+        destiny_text,
+        reply_markup=destiny_outro_keyboard
+    )
 @dp.callback_query(lambda c: c.data == "show_destiny_outro")
 async def show_destiny_outro_handler(callback: CallbackQuery):
 
