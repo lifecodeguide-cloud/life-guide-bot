@@ -112,6 +112,17 @@ paid_continue_keyboard = InlineKeyboardMarkup(
     ]
 )
 
+varna_intro_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_varna_mix")]
+    ]
+)
+
+varna_mix_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Посмотреть результат ➡️", callback_data="show_varna_result")]
+    ]
+)
 
 # =========================
 # ТЕКСТЫ
@@ -237,8 +248,6 @@ def build_varna_result_text(date_str: str):
     ]
 
     text = ""
-    text += VARNA_INTRO + "\n\n"
-    text += VARNA_MIX_EXPLANATION + "\n\n"
     text += VARNA_RESULT_INTRO
 
     text += "Итоговое распределение:\n"
@@ -676,11 +685,51 @@ async def show_next_block_handler(callback: CallbackQuery):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
-    data["stage"] = "next_block_shown"
+    if not data.get("date"):
+        await callback.message.answer("Сначала введите дату рождения.")
+        return
+
+    data["stage"] = "varna_intro_shown"
+
+    await callback.message.answer(
+        VARNA_INTRO,
+        reply_markup=varna_intro_keyboard
+    )
+
+@dp.callback_query(lambda c: c.data == "show_varna_mix")
+async def show_varna_mix_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
+    data = get_user(callback.from_user.id)
+
+    if not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        return
+
+    data["stage"] = "varna_mix_shown"
+
+    await callback.message.answer(
+        VARNA_MIX_EXPLANATION,
+        reply_markup=varna_mix_keyboard
+    )
+
+
+@dp.callback_query(lambda c: c.data == "show_varna_result")
+async def show_varna_result_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
+    data = get_user(callback.from_user.id)
+
+    if not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        return
+
+    if not data.get("date"):
+        await callback.message.answer("Сначала введите дату рождения.")
+        return
+
+    data["stage"] = "varna_result_shown"
+
     varna_text = build_varna_result_text(data["date"])
     await callback.message.answer(varna_text)
-
-
 # =========================
 # НАПОМИНАНИЯ
 # =========================
