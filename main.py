@@ -428,19 +428,19 @@ async def start_handler(message: Message):
     text = (message.text or "").strip()
     if text.startswith("/start new"):
 
-    user_data[user_id] = {
-        "date": None,
-        "soul": None,
-        "expression": None,
-        "purpose": None,
-        "paid": False,
-        "paid_shown": False,
-        "stage": "new",
-    }
+        user_data[user_id] = {
+            "date": None,
+            "soul": None,
+            "expression": None,
+            "purpose": None,
+            "paid": False,
+            "paid_shown": False,
+            "stage": "new",
+        }
 
-    await message.answer(START_TEXT)
-    await message.answer("Введите дату рождения в формате ДД.ММ.ГГГГ")
-    return
+        await message.answer(START_TEXT)
+        await message.answer("Введите дату рождения в формате ДД.ММ.ГГГГ")
+        return
 
     # Запасной вариант после оплаты через /start paid
     if text.startswith("/start paid"):
