@@ -160,7 +160,7 @@ final_keyboard = InlineKeyboardMarkup(
         [
             InlineKeyboardButton(
                 text="🔄 Рассчитать другую дату",
-                url="https://t.me/LifeGuideVitaBot"
+                url="https://t.me/LifeGuideVitaBot?start=new"
             )
         ]
     ]
@@ -426,6 +426,21 @@ async def start_handler(message: Message):
     user_id = message.from_user.id
     data = get_user(user_id)
     text = (message.text or "").strip()
+    if text.startswith("/start new"):
+
+    user_data[user_id] = {
+        "date": None,
+        "soul": None,
+        "expression": None,
+        "purpose": None,
+        "paid": False,
+        "paid_shown": False,
+        "stage": "new",
+    }
+
+    await message.answer(START_TEXT)
+    await message.answer("Введите дату рождения в формате ДД.ММ.ГГГГ")
+    return
 
     # Запасной вариант после оплаты через /start paid
     if text.startswith("/start paid"):
