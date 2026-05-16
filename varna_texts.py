@@ -82,3 +82,91 @@ VARNA_SECONDARY_TEXTS = {
         "Вам важно видеть конкретный результат, создавать порядок, форму и устойчивость."
     ),
 }
+
+VARNA_NAMES = {
+    "brahman": "Брахман",
+    "kshatriya": "Кшатрий",
+    "vaishya": "Вайшья",
+    "shudra": "Шудра",
+}
+
+VARNA_SHORT_NAMES = {
+    "brahman": "Брахман",
+    "kshatriya": "Кшатрий",
+    "vaishya": "Вайшья",
+    "shudra": "Шудра",
+}
+
+VARNA_NUMBERS = {
+    1: "kshatriya",
+    2: "brahman",
+    3: "vaishya",
+    4: "shudra",
+    5: "brahman",
+    6: "vaishya",
+    7: "kshatriya",
+    8: "shudra",
+    9: "brahman",
+}
+
+
+def reduce_to_digit(num: int) -> int:
+    while num > 9:
+        num = sum(int(d) for d in str(num))
+    return num
+
+
+def calculate_varna(day: int, month: int, year: int):
+    soul = reduce_to_digit(day)
+    expression = reduce_to_digit(day + month)
+    destiny = reduce_to_digit(sum(int(d) for d in f"{day}{month}{year}"))
+
+    numbers = [
+        ("Число души", soul),
+        ("Экспрессия", expression),
+        ("Число судьбы", destiny),
+    ]
+
+    scores = {
+        "brahman": 0,
+        "kshatriya": 0,
+        "vaishya": 0,
+        "shudra": 0,
+    }
+
+    details = []
+
+    for title, number in numbers:
+        varna = VARNA_NUMBERS[number]
+        scores[varna] += 33
+
+        details.append({
+            "title": title,
+            "number": number,
+            "varna": varna,
+            "percent": 33,
+        })
+
+    remainder = 100 - sum(scores.values())
+
+    if remainder > 0:
+        first_varna = VARNA_NUMBERS[soul]
+        scores[first_varna] += remainder
+
+    sorted_varnas = sorted(
+        scores.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    main_varna, main_score = sorted_varnas[0]
+    second_varna, second_score = sorted_varnas[1]
+
+    return {
+        "scores": scores,
+        "details": details,
+        "main_varna": main_varna,
+        "main_score": main_score,
+        "second_varna": second_varna,
+        "second_score": second_score,
+    }
