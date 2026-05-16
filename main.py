@@ -6,7 +6,7 @@ from datetime import datetime
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ReplyKeyboardRemove
 
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
@@ -189,25 +189,16 @@ async def safe_answer_callback(callback: CallbackQuery):
 async def send_paid_flow(message: Message, data: dict):
     data["paid"] = True
     data["paid_shown"] = True
-    data["stage"] = "purpose_result_shown"
-
-    await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
-    await message.answer(PURPOSE_INTRO)
-
-    purpose = ensure_purpose(data)
-
-    if purpose is None:
-        await message.answer("Не удалось определить предназначение.")
-        return
-
-    purpose_text = PURPOSE_TEXTS.get(purpose)
-    if not purpose_text:
-        await message.answer(f"Не найден текст для числа предназначения {purpose}.")
-        return
+    data["stage"] = "purpose_intro_shown"
 
     await message.answer(
-        f"Предназначение {purpose}\n\n{purpose_text}",
-        reply_markup=purpose_number_keyboard
+        "Оплата прошла успешно ✅\n\nПродолжаем 👇",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+    await message.answer(
+        PURPOSE_INTRO,
+        reply_markup=get_purpose_intro_keyboard(message.chat.id)
     )
 
 
@@ -269,6 +260,13 @@ async def start_handler(message: Message):
             "Вы уже открыли полный разбор ✅\n\n"
             "Продолжаем с того места, где остановились 👇"
         )
+
+        if stage == "purpose_intro_shown":
+            await message.answer(
+                PURPOSE_INTRO,
+                reply_markup=get_purpose_intro_keyboard(user_id)
+            )
+            return
 
         if stage == "purpose_result_shown":
             purpose = ensure_purpose(data)
@@ -454,7 +452,7 @@ async def open_sales_handler(callback: CallbackQuery):
         return
 
     if data.get("paid"):
-        await message.answer("Оплата уже подтверждена ✅\n\nПродолжаем 👇")
+        await callback.message.answer("Оплата уже подтверждена ✅\n\nПродолжаем 👇")
         await send_paid_flow(callback.message, data)
         return
 
@@ -478,8 +476,11 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
-    await callback.message.answer(PURPOSE_INTRO)
-    await send_purpose_number(callback, data)
+    await callback.message.answer(
+        PURPOSE_INTRO,
+        reply_markup=get_purpose_intro_keyboard(user_id)
+    )
+    data["stage"] = "purpose_intro_shown"
 
 
 # =========================
@@ -614,4 +615,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
