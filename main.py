@@ -1,5 +1,3 @@
-
-
 import asyncio
 import os
 import re
@@ -13,6 +11,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
+from varna_texts import VARNA_INTRO
 
 
 # =========================
@@ -98,7 +97,7 @@ purpose_number_keyboard = InlineKeyboardMarkup(
 
 purpose_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Самое интересное дальше ➡️", callback_data="show_next_block")]
+        [InlineKeyboardButton(text="Важно", callback_data="show_varna_intro")]
     ]
 )
 
@@ -190,14 +189,25 @@ async def safe_answer_callback(callback: CallbackQuery):
 async def send_paid_flow(message: Message, data: dict):
     data["paid"] = True
     data["paid_shown"] = True
-    data["stage"] = "purpose_intro_shown"
-
-    user_id = message.chat.id
+    data["stage"] = "purpose_result_shown"
 
     await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
+    await message.answer(PURPOSE_INTRO)
+
+    purpose = ensure_purpose(data)
+
+    if purpose is None:
+        await message.answer("Не удалось определить предназначение.")
+        return
+
+    purpose_text = PURPOSE_TEXTS.get(purpose)
+    if not purpose_text:
+        await message.answer(f"Не найден текст для числа предназначения {purpose}.")
+        return
+
     await message.answer(
-        PURPOSE_INTRO,
-        reply_markup=get_purpose_intro_keyboard(user_id)
+        f"Предназначение {purpose}\n\n{purpose_text}",
+        reply_markup=purpose_number_keyboard
     )
 
 
@@ -217,7 +227,7 @@ async def send_purpose_number(callback: CallbackQuery, data: dict):
         f"Предназначение {purpose}\n\n{purpose_text}",
         reply_markup=purpose_number_keyboard
     )
-    data["stage"] = "purpose_number_shown"
+    data["stage"] = "purpose_result_shown"
 
 
 # =========================
@@ -260,7 +270,7 @@ async def start_handler(message: Message):
             "Продолжаем с того места, где остановились 👇"
         )
 
-        if stage == "purpose_number_shown":
+        if stage == "purpose_result_shown":
             purpose = ensure_purpose(data)
             purpose_text = PURPOSE_TEXTS.get(purpose)
             if purpose and purpose_text:
@@ -277,14 +287,11 @@ async def start_handler(message: Message):
             )
             return
 
-        if stage == "next_block_shown":
-            await message.answer(NEXT_BLOCK_TEXT)
+        if stage == "varna_intro_shown":
+            await message.answer(VARNA_INTRO)
             return
 
-        await message.answer(
-            PURPOSE_INTRO,
-            reply_markup=get_purpose_intro_keyboard(user_id)
-        )
+        await send_paid_flow(message, data)
         return
 
     await message.answer(START_TEXT)
@@ -447,12 +454,8 @@ async def open_sales_handler(callback: CallbackQuery):
         return
 
     if data.get("paid"):
-        await callback.message.answer("Оплата уже подтверждена ✅\n\nПродолжаем 👇")
-        await callback.message.answer(
-            PURPOSE_INTRO,
-            reply_markup=get_purpose_intro_keyboard(user_id)
-        )
-        data["stage"] = "purpose_intro_shown"
+        await message.answer("Оплата уже подтверждена ✅\n\nПродолжаем 👇")
+        await send_paid_flow(callback.message, data)
         return
 
     await callback.message.answer(
@@ -475,11 +478,8 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
-    await callback.message.answer(
-        PURPOSE_INTRO,
-        reply_markup=get_purpose_intro_keyboard(user_id)
-    )
-    data["stage"] = "purpose_intro_shown"
+    await callback.message.answer(PURPOSE_INTRO)
+    await send_purpose_number(callback, data)
 
 
 # =========================
@@ -524,6 +524,22 @@ async def show_purpose_outro_handler(callback: CallbackQuery):
         reply_markup=purpose_outro_keyboard
     )
     data["stage"] = "purpose_outro_shown"
+
+
+# =========================
+# ВАЖНО / ВАРНЫ
+# =========================
+@dp.callback_query(lambda c: c.data == "show_varna_intro")
+async def show_varna_intro_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
+    data = get_user(callback.from_user.id)
+
+    if not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        return
+
+    await callback.message.answer(VARNA_INTRO)
+    data["stage"] = "varna_intro_shown"
 
 
 # =========================
