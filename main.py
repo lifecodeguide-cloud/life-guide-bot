@@ -125,13 +125,19 @@ purpose_number_keyboard = InlineKeyboardMarkup(
 
 purpose_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Важно", callback_data="show_varna_intro")]
+        [InlineKeyboardButton(text="Желания", callback_data="show_varna_intro")]
     ]
 )
 
 varna_intro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Ваша варна ➡️", callback_data="show_varna_result")]
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_varna_mix")]
+    ]
+)
+
+varna_mix_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_varna_result")]
     ]
 )
 
@@ -237,7 +243,6 @@ def build_varna_short_text(date_str: str, data: dict) -> str:
     details = result["details"]
 
     text = ""
-    text += VARNA_MIX_EXPLANATION + "\n\n"
     text += VARNA_RESULT_INTRO
     text += "Расчёт по вашей дате рождения:\n\n"
 
@@ -280,29 +285,19 @@ async def safe_answer_callback(callback: CallbackQuery):
         pass
 
 
-async def send_paid_flow(message: Message, data: dict):
+async def send_paid_flow(message: Message, data: dict, user_id: int | None = None):
     data["paid"] = True
     data["paid_shown"] = True
-    data["stage"] = "purpose_result_shown"
+    data["stage"] = "purpose_intro_shown"
     save_users()
 
+    if user_id is None:
+        user_id = message.chat.id
+
     await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
-    await message.answer(PURPOSE_INTRO)
-
-    purpose = ensure_purpose(data)
-
-    if purpose is None:
-        await message.answer("Не удалось определить предназначение.")
-        return
-
-    purpose_text = PURPOSE_TEXTS.get(purpose)
-    if not purpose_text:
-        await message.answer(f"Не найден текст для числа предназначения {purpose}.")
-        return
-
     await message.answer(
-        f"Предназначение {purpose}\n\n{purpose_text}",
-        reply_markup=purpose_number_keyboard
+        PURPOSE_INTRO,
+        reply_markup=get_purpose_intro_keyboard(user_id)
     )
 
 
@@ -366,6 +361,13 @@ async def start_handler(message: Message):
             "Продолжаем с того места, где остановились 👇"
         )
 
+        if stage == "purpose_intro_shown":
+            await message.answer(
+                PURPOSE_INTRO,
+                reply_markup=get_purpose_intro_keyboard(user_id)
+            )
+            return
+
         if stage == "purpose_result_shown":
             purpose = ensure_purpose(data)
             purpose_text = PURPOSE_TEXTS.get(purpose)
@@ -387,6 +389,13 @@ async def start_handler(message: Message):
             await message.answer(
                 VARNA_INTRO,
                 reply_markup=varna_intro_keyboard
+            )
+            return
+
+        if stage == "varna_mix_shown":
+            await message.answer(
+                VARNA_MIX_EXPLANATION,
+                reply_markup=varna_mix_keyboard
             )
             return
 
@@ -585,8 +594,12 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
-    await callback.message.answer(PURPOSE_INTRO)
-    await send_purpose_number(callback, data)
+    await callback.message.answer(
+        PURPOSE_INTRO,
+        reply_markup=get_purpose_intro_keyboard(user_id)
+    )
+    data["stage"] = "purpose_intro_shown"
+    save_users()
 
 
 # =========================
@@ -648,6 +661,20 @@ async def show_varna_intro_handler(callback: CallbackQuery):
     )
 
     data["stage"] = "varna_intro_shown"
+    save_users()
+
+
+@dp.callback_query(lambda c: c.data == "show_varna_mix")
+async def show_varna_mix_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
+    data = get_user(callback.from_user.id)
+
+    await callback.message.answer(
+        VARNA_MIX_EXPLANATION,
+        reply_markup=varna_mix_keyboard
+    )
+
+    data["stage"] = "varna_mix_shown"
     save_users()
 
 
