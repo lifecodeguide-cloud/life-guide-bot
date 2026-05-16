@@ -247,6 +247,7 @@ def build_varna_short_text(date_str: str, data: dict) -> str:
         )
 
     return text
+    
 async def safe_answer_callback(callback: CallbackQuery):
     try:
         await callback.answer()
@@ -522,7 +523,7 @@ async def open_sales_handler(callback: CallbackQuery):
         return
 
     if data.get("paid"):
-        await message.answer("Оплата уже подтверждена ✅\n\nПродолжаем 👇")
+        await callback.message.answer("Оплата подтверждена ✅\n\nПродолжаем 👇")
         await send_paid_flow(callback.message, data)
         return
 
