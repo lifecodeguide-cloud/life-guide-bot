@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 import logging
+import json
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
@@ -33,6 +34,23 @@ logging.basicConfig(level=logging.INFO)
 # ДАННЫЕ ПОЛЬЗОВАТЕЛЕЙ
 # =========================
 user_data = {}
+DATA_FILE = "users.json"
+
+
+def load_users():
+    global user_data
+
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            user_data = json.load(f)
+            user_data = {int(k): v for k, v in user_data.items()}
+    except Exception:
+        user_data = {}
+
+
+def save_users():
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(user_data, f, ensure_ascii=False, indent=2)
 
 
 def get_user(user_id: int):
@@ -46,6 +64,7 @@ def get_user(user_id: int):
             "paid_shown": False,
             "stage": "new",
         }
+        save_users()
     return user_data[user_id]
 
 
@@ -109,6 +128,7 @@ purpose_outro_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Важно", callback_data="show_varna_intro")]
     ]
 )
+
 varna_intro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Ваша варна ➡️", callback_data="show_varna_result")]
@@ -126,6 +146,7 @@ varna_destiny_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Число судьбы ➡️", callback_data="show_destiny_intro")]
     ]
 )
+
 paid_continue_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Продолжить разбор ➡️", callback_data="paid_continue")]
@@ -199,15 +220,18 @@ def ensure_purpose(data: dict):
     if data.get("purpose") is None and data.get("date"):
         try:
             data["purpose"] = calculate_purpose(data["date"])
+            save_users()
         except Exception:
             data["purpose"] = None
     return data.get("purpose")
+
 
 def build_varna_short_text(date_str: str, data: dict) -> str:
     day, month, year = map(int, date_str.split("."))
 
     result = calculate_varna(day, month, year)
     data["varna_result"] = result
+    save_users()
 
     scores = result["scores"]
     details = result["details"]
@@ -247,7 +271,8 @@ def build_varna_short_text(date_str: str, data: dict) -> str:
         )
 
     return text
-    
+
+
 async def safe_answer_callback(callback: CallbackQuery):
     try:
         await callback.answer()
@@ -259,6 +284,7 @@ async def send_paid_flow(message: Message, data: dict):
     data["paid"] = True
     data["paid_shown"] = True
     data["stage"] = "purpose_result_shown"
+    save_users()
 
     await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
     await message.answer(PURPOSE_INTRO)
@@ -297,6 +323,7 @@ async def send_purpose_number(callback: CallbackQuery, data: dict):
         reply_markup=purpose_number_keyboard
     )
     data["stage"] = "purpose_result_shown"
+    save_users()
 
 
 # =========================
@@ -315,12 +342,13 @@ async def start_handler(message: Message):
     data = get_user(user_id)
     text = (message.text or "").strip()
 
-    # Запасной вариант после оплаты через /start paid
     if text.startswith("/start paid"):
         data["paid"] = True
+        save_users()
 
         if not has_calculation_data(data):
             data["stage"] = "awaiting_date_after_payment"
+            save_users()
             await message.answer(
                 "Оплата прошла успешно ✅\n\n"
                 "Теперь отправьте дату рождения в формате ДД.ММ.ГГГГ"
@@ -330,7 +358,6 @@ async def start_handler(message: Message):
         await send_paid_flow(message, data)
         return
 
-    # Если уже оплатил и снова нажал /start
     if data.get("paid"):
         stage = data.get("stage")
 
@@ -381,9 +408,11 @@ async def paid_continue_handler(callback: CallbackQuery):
     data = get_user(user_id)
 
     data["paid"] = True
+    save_users()
 
     if not has_calculation_data(data):
         data["stage"] = "awaiting_date_after_payment"
+        save_users()
         await callback.message.answer(
             "Оплата прошла успешно ✅\n\n"
             "Теперь отправьте дату рождения в формате ДД.ММ.ГГГГ"
@@ -434,6 +463,7 @@ async def date_handler(message: Message):
         "paid_shown": old_data.get("paid_shown", False),
         "stage": "date_entered",
     }
+    save_users()
 
     data = get_user(message.from_user.id)
 
@@ -450,6 +480,7 @@ async def date_handler(message: Message):
 
     await message.answer(SOUL_INTRO, reply_markup=soul_intro_keyboard)
     data["stage"] = "soul_intro_shown"
+    save_users()
 
     asyncio.create_task(remind_later(message))
     asyncio.create_task(remind_next_day(message))
@@ -474,6 +505,7 @@ async def show_soul_handler(callback: CallbackQuery):
         reply_markup=soul_result_keyboard
     )
     data["stage"] = "soul_shown"
+    save_users()
 
 
 # =========================
@@ -489,6 +521,7 @@ async def show_expression_intro_handler(callback: CallbackQuery):
         reply_markup=expression_intro_keyboard
     )
     data["stage"] = "expression_intro_shown"
+    save_users()
 
 
 # =========================
@@ -510,6 +543,7 @@ async def show_expression_handler(callback: CallbackQuery):
         reply_markup=open_full_keyboard
     )
     data["stage"] = "expression_shown"
+    save_users()
 
 
 # =========================
@@ -535,6 +569,7 @@ async def open_sales_handler(callback: CallbackQuery):
         reply_markup=get_pay_keyboard(user_id)
     )
     data["stage"] = "sales_shown"
+    save_users()
 
 
 # =========================
@@ -596,6 +631,7 @@ async def show_purpose_outro_handler(callback: CallbackQuery):
         reply_markup=purpose_outro_keyboard
     )
     data["stage"] = "purpose_outro_shown"
+    save_users()
 
 
 # =========================
@@ -612,6 +648,8 @@ async def show_varna_intro_handler(callback: CallbackQuery):
     )
 
     data["stage"] = "varna_intro_shown"
+    save_users()
+
 
 @dp.callback_query(lambda c: c.data == "show_varna_result")
 async def show_varna_result_handler(callback: CallbackQuery):
@@ -631,6 +669,7 @@ async def show_varna_result_handler(callback: CallbackQuery):
     )
 
     data["stage"] = "varna_result_shown"
+    save_users()
 
 
 @dp.callback_query(lambda c: c.data == "show_varna_main")
@@ -679,6 +718,7 @@ async def show_varna_main_handler(callback: CallbackQuery):
     )
 
     data["stage"] = "varna_full_shown"
+    save_users()
 
 
 # =========================
@@ -694,6 +734,7 @@ async def show_next_block_handler(callback: CallbackQuery):
         return
 
     data["stage"] = "next_block_shown"
+    save_users()
     await callback.message.answer(NEXT_BLOCK_TEXT)
 
 
@@ -744,6 +785,8 @@ async def errors_handler(event):
 # ЗАПУСК
 # =========================
 async def main():
+    load_users()
+
     if not TOKEN:
         raise ValueError("BOT_TOKEN не найден в переменных окружения")
 
