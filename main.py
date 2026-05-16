@@ -28,7 +28,7 @@ from varna_texts import (
 )
 
 from destiny_texts import DESTINY_INTRO, DESTINY_TEXTS, DESTINY_OUTRO
-from final_text import FINAL_OUTRO
+from final_texts import FINAL_OUTRO
 
 
 logging.basicConfig(level=logging.INFO)
