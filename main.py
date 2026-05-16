@@ -11,7 +11,16 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
-from varna_texts import VARNA_INTRO
+from varna_texts import (
+    VARNA_INTRO,
+    VARNA_MIX_EXPLANATION,
+    VARNA_RESULT_INTRO,
+    VARNA_FULL_TEXTS,
+    VARNA_SECONDARY_TEXTS,
+    VARNA_NAMES,
+    VARNA_SHORT_NAMES,
+    calculate_varna
+)
 
 
 # =========================
@@ -100,7 +109,23 @@ purpose_outro_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="Важно", callback_data="show_varna_intro")]
     ]
 )
+varna_intro_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Ваша варна ➡️", callback_data="show_varna_result")]
+    ]
+)
 
+varna_main_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Описание варны ➡️", callback_data="show_varna_main")]
+    ]
+)
+
+varna_destiny_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Число судьбы ➡️", callback_data="show_destiny_intro")]
+    ]
+)
 paid_continue_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
         [InlineKeyboardButton(text="Продолжить разбор ➡️", callback_data="paid_continue")]
@@ -178,7 +203,50 @@ def ensure_purpose(data: dict):
             data["purpose"] = None
     return data.get("purpose")
 
+def build_varna_short_text(date_str: str, data: dict) -> str:
+    day, month, year = map(int, date_str.split("."))
 
+    result = calculate_varna(day, month, year)
+    data["varna_result"] = result
+
+    scores = result["scores"]
+    details = result["details"]
+
+    text = ""
+    text += VARNA_MIX_EXPLANATION + "\n\n"
+    text += VARNA_RESULT_INTRO
+    text += "Расчёт по вашей дате рождения:\n\n"
+
+    for item in details:
+        text += (
+            f"{item['title']}: {item['number']} → "
+            f"{VARNA_SHORT_NAMES[item['varna']]} → {item['percent']}%\n"
+        )
+
+    text += "\nИтоговое распределение:\n"
+    text += f"Брахман: {scores['brahman']}%\n"
+    text += f"Кшатрий: {scores['kshatriya']}%\n"
+    text += f"Вайшья: {scores['vaishya']}%\n"
+    text += f"Шудра: {scores['shudra']}%\n\n"
+
+    main_varna = result["main_varna"]
+    main_score = result["main_score"]
+
+    top_varnas = [
+        varna for varna, score in scores.items()
+        if score == main_score
+    ]
+
+    if len(top_varnas) > 1:
+        names = " и ".join(VARNA_SHORT_NAMES[v] for v in top_varnas)
+        text += f"По данной методике у вас смешанный тип: {names}.\n"
+    else:
+        text += (
+            f"По данной методике ваш основной психотип:\n"
+            f"{VARNA_NAMES[main_varna]} — {main_score}%\n"
+        )
+
+    return text
 async def safe_answer_callback(callback: CallbackQuery):
     try:
         await callback.answer()
@@ -534,12 +602,79 @@ async def show_varna_intro_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
     data = get_user(callback.from_user.id)
 
-    if not data.get("paid"):
-        await callback.message.answer("Сначала откройте полный разбор.")
+    await callback.message.answer(
+        VARNA_INTRO,
+        reply_markup=varna_intro_keyboard
+    )
+
+    data["stage"] = "varna_intro_shown"
+
+@dp.callback_query(lambda c: c.data == "show_varna_result")
+async def show_varna_result_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
+
+    data = get_user(callback.from_user.id)
+
+    if not data.get("date"):
+        await callback.message.answer("Сначала введите дату рождения.")
         return
 
-    await callback.message.answer(VARNA_INTRO)
-    data["stage"] = "varna_intro_shown"
+    varna_text = build_varna_short_text(data["date"], data)
+
+    await callback.message.answer(
+        varna_text,
+        reply_markup=varna_main_keyboard
+    )
+
+    data["stage"] = "varna_result_shown"
+
+
+@dp.callback_query(lambda c: c.data == "show_varna_main")
+async def show_varna_main_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
+
+    data = get_user(callback.from_user.id)
+    result = data.get("varna_result")
+
+    if not result:
+        if not data.get("date"):
+            await callback.message.answer("Сначала введите дату рождения.")
+            return
+        build_varna_short_text(data["date"], data)
+        result = data.get("varna_result")
+
+    scores = result["scores"]
+    main_score = result["main_score"]
+    main_varna = result["main_varna"]
+    second_varna = result["second_varna"]
+    second_score = result["second_score"]
+
+    top_varnas = [
+        varna for varna, score in scores.items()
+        if score == main_score
+    ]
+
+    text = ""
+
+    if len(top_varnas) > 1:
+        for varna in top_varnas:
+            text += VARNA_FULL_TEXTS[varna] + "\n\n"
+    else:
+        text += VARNA_FULL_TEXTS[main_varna] + "\n\n"
+
+        if second_score >= 20:
+            text += (
+                f"Дополнительное влияние: "
+                f"{VARNA_SHORT_NAMES[second_varna]} — {second_score}%\n\n"
+            )
+            text += VARNA_SECONDARY_TEXTS[second_varna] + "\n\n"
+
+    await callback.message.answer(
+        text,
+        reply_markup=varna_destiny_keyboard
+    )
+
+    data["stage"] = "varna_full_shown"
 
 
 # =========================
