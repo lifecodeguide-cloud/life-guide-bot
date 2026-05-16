@@ -111,7 +111,7 @@ open_full_keyboard = InlineKeyboardMarkup(
 
 purpose_intro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_number")]
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_text")]
     ]
 )
 
@@ -148,7 +148,7 @@ varna_main_keyboard = InlineKeyboardMarkup(
 
 varna_destiny_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="Число судьбы ➡️", callback_data="show_destiny_intro")]
+        [InlineKeyboardButton(text="Число судьбы ➡️", callback_data="show_next_block")]
     ]
 )
 
@@ -182,8 +182,8 @@ SALES_TEXT = (
 )
 
 NEXT_BLOCK_TEXT = (
-    "Здесь будет блок варн.\n\n"
-    "Сейчас можешь вставить сюда текст или запуск следующего платного блока."
+    "На этом текущая часть полного разбора завершена.\n\n"
+    "Дальше сюда можно подключить следующий блок, когда он будет готов."
 )
 
 
@@ -601,8 +601,8 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
 # =========================
 # ПРЕДНАЗНАЧЕНИЕ — ЧАСТЬ 2
 # =========================
-@dp.callback_query(lambda c: c.data == "show_purpose_number")
-async def show_purpose_number_handler(callback: CallbackQuery):
+@dp.callback_query(lambda c: c.data in {"show_purpose_text", "show_purpose_number"})
+async def show_purpose_text_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
 
     data = get_user(callback.from_user.id)
