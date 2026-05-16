@@ -357,7 +357,10 @@ async def start_handler(message: Message):
             return
 
         if stage == "varna_intro_shown":
-            await message.answer(VARNA_INTRO)
+            await message.answer(
+                VARNA_INTRO,
+                reply_markup=varna_intro_keyboard
+            )
             return
 
         await send_paid_flow(message, data)
