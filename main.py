@@ -109,12 +109,11 @@ open_full_keyboard = InlineKeyboardMarkup(
 )
 
 
-def get_purpose_intro_keyboard(user_id: int):
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Дальше ➡️", callback_data=f"show_purpose_number:{user_id}")]
-        ]
-    )
+purpose_intro_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_purpose_number")]
+    ]
+)
 
 
 purpose_number_keyboard = InlineKeyboardMarkup(
@@ -285,19 +284,16 @@ async def safe_answer_callback(callback: CallbackQuery):
         pass
 
 
-async def send_paid_flow(message: Message, data: dict, user_id: int | None = None):
+async def send_paid_flow(message: Message, data: dict):
     data["paid"] = True
     data["paid_shown"] = True
     data["stage"] = "purpose_intro_shown"
     save_users()
 
-    if user_id is None:
-        user_id = message.chat.id
-
     await message.answer("Оплата прошла успешно ✅\n\nПродолжаем 👇")
     await message.answer(
         PURPOSE_INTRO,
-        reply_markup=get_purpose_intro_keyboard(user_id)
+        reply_markup=purpose_intro_keyboard
     )
 
 
@@ -364,7 +360,7 @@ async def start_handler(message: Message):
         if stage == "purpose_intro_shown":
             await message.answer(
                 PURPOSE_INTRO,
-                reply_markup=get_purpose_intro_keyboard(user_id)
+                reply_markup=purpose_intro_keyboard
             )
             return
 
@@ -596,7 +592,7 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
 
     await callback.message.answer(
         PURPOSE_INTRO,
-        reply_markup=get_purpose_intro_keyboard(user_id)
+        reply_markup=purpose_intro_keyboard
     )
     data["stage"] = "purpose_intro_shown"
     save_users()
@@ -605,16 +601,28 @@ async def show_purpose_intro_handler(callback: CallbackQuery):
 # =========================
 # ПРЕДНАЗНАЧЕНИЕ — ЧАСТЬ 2
 # =========================
-@dp.callback_query(lambda c: c.data.startswith("show_purpose_number"))
+@dp.callback_query(lambda c: c.data == "show_purpose_number")
 async def show_purpose_number_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
 
-    if ":" in callback.data:
-        paid_user_id = int(callback.data.split(":")[1])
-    else:
-        paid_user_id = callback.from_user.id
+    data = get_user(callback.from_user.id)
 
-    data = get_user(paid_user_id)
+    if not data.get("paid"):
+        await callback.message.answer("Сначала откройте полный разбор.")
+        return
+
+    if not data.get("date"):
+        await callback.message.answer("Сначала введите дату рождения.")
+        return
+
+    await send_purpose_number(callback, data)
+
+
+@dp.callback_query(lambda c: c.data.startswith("show_purpose_number:"))
+async def show_purpose_number_old_handler(callback: CallbackQuery):
+    await safe_answer_callback(callback)
+
+    data = get_user(callback.from_user.id)
 
     if not data.get("paid"):
         await callback.message.answer("Сначала откройте полный разбор.")
