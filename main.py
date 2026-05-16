@@ -1,3 +1,5 @@
+
+
 import asyncio
 import os
 import re
@@ -11,15 +13,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
 from expression_texts import EXPRESSION_TEXTS, EXPRESSION_INTRO
 from purpose_texts import PURPOSE_TEXTS, PURPOSE_INTRO, PURPOSE_OUTRO
-from destiny_texts import DESTINY_INTRO, DESTINY_TEXTS, DESTINY_OUTRO
-from final_texts import FINAL_OUTRO
-from varna_texts import (
-    VARNA_INTRO,
-    VARNA_MIX_EXPLANATION,
-    VARNA_RESULT_INTRO,
-    VARNA_FULL_TEXTS,
-    VARNA_SECONDARY_TEXTS,
-)
+
 
 # =========================
 # ЛОГИ
@@ -114,57 +108,7 @@ paid_continue_keyboard = InlineKeyboardMarkup(
     ]
 )
 
-varna_intro_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_varna_mix")]
-    ]
-)
 
-varna_mix_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Посмотреть результат ➡️", callback_data="show_varna_result")]
-    ]
-)
-destiny_intro_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Дальше ➡️", callback_data="show_destiny_text")]
-    ]
-)
-
-destiny_text_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Ваше число судьбы", callback_data="show_destiny_outro")]
-    ]
-)
-
-destiny_outro_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Важно помнить", callback_data="show_final_real")]
-    ]
-)
-
-final_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="📤 Поделиться",
-                url="https://t.me/LifeGuideVitaBot"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="❤️ Совместимость",
-                url="https://t.me/love_guide_bot"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="🔄 Рассчитать другую дату",
-                url="https://t.me/LifeGuideVitaBot?start=new"
-            )
-        ]
-    ]
-)
 # =========================
 # ТЕКСТЫ
 # =========================
@@ -196,138 +140,6 @@ NEXT_BLOCK_TEXT = (
 # =========================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # =========================
-VARNA_NUMBERS = {
-    "brahman": [3, 6],
-    "kshatriya": [1, 9],
-    "vaishya": [2, 5],
-    "shudra": [4, 7, 8],
-}
-
-VARNA_NAMES = {
-    "brahman": "Брахман / Путь Мудреца",
-    "kshatriya": "Кшатрий / Путь Лидера-Воина",
-    "vaishya": "Вайшья / Путь Бизнесмена",
-    "shudra": "Шудра / Путь Творца-Созидателя",
-}
-
-VARNA_SHORT_NAMES = {
-    "brahman": "Брахман",
-    "kshatriya": "Кшатрий",
-    "vaishya": "Вайшья",
-    "shudra": "Шудра",
-}
-
-
-def get_varna_by_number(number):
-    for varna, numbers in VARNA_NUMBERS.items():
-        if number in numbers:
-            return varna
-    return None
-
-def calculate_varna(date_str: str):
-
-    day, month, year = date_str.split(".")
-
-    day = int(day)
-    month = int(month)
-    year = int(year)
-
-    soul_number = reduce_to_digit(day)
-
-    month_number = reduce_to_digit(month)
-
-    year_number = reduce_to_digit(
-        sum(int(d) for d in str(year))
-    )
-
-    destiny_number = reduce_to_digit(
-        sum(int(d) for d in date_str if d.isdigit())
-    )
-
-    scores = {
-        "brahman": 0,
-        "kshatriya": 0,
-        "vaishya": 0,
-        "shudra": 0,
-    }
-
-    calculations = [
-        (soul_number, 40),
-        (month_number, 10),
-        (year_number, 10),
-        (destiny_number, 40),
-    ]
-
-    for number, percent in calculations:
-
-        varna = get_varna_by_number(number)
-
-        if varna:
-            scores[varna] += percent
-
-    return scores
-
-def build_varna_result_text(date_str: str):
-
-    scores = calculate_varna(date_str)
-
-    sorted_scores = sorted(
-        scores.items(),
-        key=lambda item: item[1],
-        reverse=True
-    )
-
-    main_varna = sorted_scores[0][0]
-    main_score = sorted_scores[0][1]
-
-    second_varna = sorted_scores[1][0]
-    second_score = sorted_scores[1][1]
-
-    top_varnas = [
-        varna for varna, score in scores.items()
-        if score == main_score
-    ]
-
-    text = ""
-    text += VARNA_RESULT_INTRO
-
-    text += "Итоговое распределение:\n"
-    text += f"Брахман: {scores['brahman']}%\n"
-    text += f"Кшатрий: {scores['kshatriya']}%\n"
-    text += f"Вайшья: {scores['vaishya']}%\n"
-    text += f"Шудра: {scores['shudra']}%\n\n"
-
-    if len(top_varnas) > 1:
-        names = " и ".join(VARNA_SHORT_NAMES[v] for v in top_varnas)
-
-        text += (
-            f"По данной методике у вас смешанный тип: {names}.\n\n"
-            "Это значит, что в вашей природе одновременно сильны два направления.\n"
-            "Иногда они могут поддерживать друг друга, а иногда — тянуть в разные стороны.\n"
-            "Это не ошибка расчёта, а особенность внутреннего устройства.\n\n"
-        )
-
-        for varna in top_varnas:
-            text += VARNA_FULL_TEXTS[varna] + "\n\n"
-
-        return text
-
-    text += (
-        f"По данной методике ваш основной психотип:\n"
-        f"{VARNA_NAMES[main_varna]} — {main_score}%\n\n"
-    )
-
-    text += VARNA_FULL_TEXTS[main_varna] + "\n\n"
-
-    if second_score >= 20:
-        text += (
-            f"Дополнительное влияние: "
-            f"{VARNA_SHORT_NAMES[second_varna]} — {second_score}%\n\n"
-        )
-        text += VARNA_SECONDARY_TEXTS[second_varna] + "\n\n"
-
-    return text
-
 def reduce_to_digit(num: int) -> int:
     while num > 9:
         num = sum(int(d) for d in str(num))
@@ -348,10 +160,7 @@ def calculate_purpose(date_str: str) -> int:
     day, month, year = date_str.split(".")
     total = sum(int(d) for d in day + month)
     return reduce_to_digit(total)
-    
-def calculate_destiny(date_str: str) -> int:
-    total = sum(int(d) for d in date_str if d.isdigit())
-    return reduce_to_digit(total)
+
 
 def has_calculation_data(data: dict) -> bool:
     return (
@@ -426,21 +235,6 @@ async def start_handler(message: Message):
     user_id = message.from_user.id
     data = get_user(user_id)
     text = (message.text or "").strip()
-    if text.startswith("/start new"):
-
-        user_data[user_id] = {
-            "date": None,
-            "soul": None,
-            "expression": None,
-            "purpose": None,
-            "paid": False,
-            "paid_shown": False,
-            "stage": "new",
-        }
-
-        await message.answer(START_TEXT)
-        await message.answer("Введите дату рождения в формате ДД.ММ.ГГГГ")
-        return
 
     # Запасной вариант после оплаты через /start paid
     if text.startswith("/start paid"):
@@ -744,101 +538,9 @@ async def show_next_block_handler(callback: CallbackQuery):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
-    if not data.get("date"):
-        await callback.message.answer("Сначала введите дату рождения.")
-        return
+    data["stage"] = "next_block_shown"
+    await callback.message.answer(NEXT_BLOCK_TEXT)
 
-    data["stage"] = "varna_intro_shown"
-
-    await callback.message.answer(
-        VARNA_INTRO,
-        reply_markup=varna_intro_keyboard
-    )
-
-@dp.callback_query(lambda c: c.data == "show_varna_mix")
-async def show_varna_mix_handler(callback: CallbackQuery):
-    await safe_answer_callback(callback)
-    data = get_user(callback.from_user.id)
-
-    if not data.get("paid"):
-        await callback.message.answer("Сначала откройте полный разбор.")
-        return
-
-    data["stage"] = "varna_mix_shown"
-
-    await callback.message.answer(
-        VARNA_MIX_EXPLANATION,
-        reply_markup=varna_mix_keyboard
-    )
-
-
-@dp.callback_query(lambda c: c.data == "show_varna_result")
-async def show_varna_result_handler(callback: CallbackQuery):
-    await safe_answer_callback(callback)
-    data = get_user(callback.from_user.id)
-
-    if not data.get("paid"):
-        await callback.message.answer("Сначала откройте полный разбор.")
-        return
-
-    if not data.get("date"):
-        await callback.message.answer("Сначала введите дату рождения.")
-        return
-
-    data["stage"] = "varna_result_shown"
-
-    varna_text = build_varna_result_text(data["date"])
-    await callback.message.answer(
-    varna_text,
-    reply_markup=destiny_intro_keyboard
-)
-
-@dp.callback_query(lambda c: c.data == "show_destiny_text")
-async def show_destiny_intro_handler(callback: CallbackQuery):
-    await safe_answer_callback(callback)
-
-    data = get_user(callback.from_user.id)
-
-    if not data.get("date"):
-        await callback.message.answer("Сначала введите дату рождения.")
-        return
-
-    destiny = calculate_destiny(data["date"])
-    data["destiny_number"] = destiny
-
-    await callback.message.answer(
-        DESTINY_INTRO,
-        reply_markup=destiny_text_keyboard
-    )
-
-
-@dp.callback_query(lambda c: c.data == "show_destiny_outro")
-async def show_destiny_text_handler(callback: CallbackQuery):
-    await safe_answer_callback(callback)
-
-    data = get_user(callback.from_user.id)
-
-    destiny = data.get("destiny_number")
-
-    if destiny is None:
-        destiny = calculate_destiny(data["date"])
-
-    destiny_text = DESTINY_TEXTS.get(destiny)
-
-    await callback.message.answer(
-        f"{destiny_text}",
-        reply_markup=destiny_outro_keyboard
-    )
-
-
-@dp.callback_query(lambda c: c.data == "show_final_real")
-async def show_final_real_handler(callback: CallbackQuery):
-    await safe_answer_callback(callback)
-
-    await callback.message.answer(
-        FINAL_OUTRO,
-        reply_markup=final_keyboard
-    )
 
 # =========================
 # НАПОМИНАНИЯ
