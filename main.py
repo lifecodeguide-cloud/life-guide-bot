@@ -788,25 +788,25 @@ async def get_gift_pdf_handler(callback: CallbackQuery):
     await safe_answer_callback(callback)
 
     await callback.message.answer(
-    "🎁 Ваш подарок готов\n\n"
-    "PDF-инструкция «Персональный день силы» 👇"
-)
-
-if GIFT_PDF_URL:
-    await callback.message.answer_document(
-        URLInputFile(GIFT_PDF_URL)
+        "🎁 Ваш подарок готов\n\n"
+        "PDF-инструкция «Персональный день силы» 👇"
     )
-    return
 
-if GIFT_PDF_PATH and os.path.exists(GIFT_PDF_PATH):
-    await callback.message.answer_document(
-        FSInputFile(GIFT_PDF_PATH)
+    if GIFT_PDF_URL:
+        await callback.message.answer_document(
+            URLInputFile(GIFT_PDF_URL)
+        )
+        return
+
+    if GIFT_PDF_PATH and os.path.exists(GIFT_PDF_PATH):
+        await callback.message.answer_document(
+            FSInputFile(GIFT_PDF_PATH)
+        )
+        return
+
+    await callback.message.answer(
+        "PDF пока не подключён."
     )
-    return
-
-await callback.message.answer(
-    "PDF пока не подключён."
-)
 
 
 @dp.callback_query(lambda c: c.data == "other_date")
