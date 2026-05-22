@@ -285,18 +285,28 @@ final_keyboard = InlineKeyboardMarkup(
     ]
 )
 
-gift_keyboard_buttons = [[InlineKeyboardButton(
-    text="Поделиться ботом",
-    url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=Посмотри+-+интересно+✨"
-)]]
-gift_keyboard_buttons.append([
-    InlineKeyboardButton(
-        text="Забрать подарок 🎁",
-        callback_data="get_gift_pdf"
-    )
-])
-
-gift_keyboard = InlineKeyboardMarkup(inline_keyboard=gift_keyboard_buttons)
+gift_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🎁 Забрать подарок",
+                callback_data="get_gift_pdf"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="💕 Совместимость",
+                url=COMPATIBILITY_BOT_URL
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📅 Другая дата",
+                callback_data="other_date"
+            )
+        ]
+    ]
+)
 
 
 START_TEXT = (
