@@ -776,11 +776,10 @@ async def share_bot_handler(callback: CallbackQuery):
     bot_link = f"https://t.me/{BOT_USERNAME}"
 
     await callback.message.answer(
-        "Можно поделиться ботом по этой ссылке:\n\n"
-        f"{bot_link}\n\n"
-        "После этого можно забрать подарок 👇",
-        reply_markup=gift_keyboard,
-    )
+    "Можно поделиться ботом по этой ссылке и забрать подарок 👇\n\n"
+    f"{bot_link}\n",
+    reply_markup=gift_keyboard,
+)
 
 
 @dp.callback_query(lambda c: c.data == "get_gift_pdf")
