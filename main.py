@@ -390,7 +390,7 @@ async def send_destiny_text(callback: CallbackQuery, data: dict):
         return
 
     await callback.message.answer(
-        f"Число судьбы {destiny}\n\n{destiny_text}",
+        destiny_text,
         reply_markup=destiny_text_keyboard,
     )
 
