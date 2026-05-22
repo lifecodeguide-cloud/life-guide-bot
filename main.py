@@ -768,7 +768,16 @@ async def show_final_outro_handler(callback: CallbackQuery):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
-    await callback.message.answer(FINAL_OUTRO, reply_markup=final_keyboard)
+    bot_link = f"https://t.me/{BOT_USERNAME}"
+
+    await callback.message.answer(FINAL_OUTRO)
+
+    await callback.message.answer(
+        "Можно поделиться ботом по этой ссылке и забрать подарок 👇\n\n"
+        f"{bot_link}\n",
+        reply_markup=gift_keyboard,
+    )
+
     data["stage"] = "final_outro_shown"
 
 
