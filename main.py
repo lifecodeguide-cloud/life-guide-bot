@@ -851,7 +851,10 @@ async def other_date_handler(callback: CallbackQuery):
         "stage": "awaiting_other_date",
     }
 
-    await callback.message.answer("Введите другую дату рождения в формате ДД.ММ.ГГГГ")
+    await callback.message.answer(START_TEXT)
+    await callback.message.answer(
+        "Введите дату рождения в формате ДД.ММ.ГГГГ"
+    )
 
 
 async def remind_later(message: Message):
