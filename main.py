@@ -277,28 +277,7 @@ destiny_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="Дальше ➡️", callback_data="show_final_outro")]]
 )
 
-final_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="Поделиться",
-                callback_data="share_bot"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="Совместимость",
-                url=COMPATIBILITY_BOT_URL
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="Другая дата",
-                callback_data="other_date"
-            )
-        ]
-    ]
-)
+final_keyboard = None
 
 gift_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -859,8 +838,8 @@ async def other_date_handler(callback: CallbackQuery):
         "destiny": None,
         "varna_main": None,
         "varna_secondary": None,
-        "paid": False,
-        "paid_shown": False,
+        "paid": paid,
+        "paid_shown": data.get("paid_shown", False),
         "stage": "awaiting_other_date",
     }
 
@@ -916,3 +895,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
