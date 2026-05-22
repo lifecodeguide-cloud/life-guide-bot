@@ -289,10 +289,12 @@ gift_keyboard_buttons = [[InlineKeyboardButton(
     text="Поделиться ботом",
     url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=Посмотри — интересно ✨ ✨"
 )]]
-if GIFT_PDF_URL:
-    gift_keyboard_buttons.append([InlineKeyboardButton(text="Забрать подарок", url=GIFT_PDF_URL)])
-else:
-    gift_keyboard_buttons.append([InlineKeyboardButton(text="Забрать подарок", callback_data="get_gift_pdf")])
+gift_keyboard_buttons.append([
+    InlineKeyboardButton(
+        text="Забрать подарок 🎁",
+        callback_data="get_gift_pdf"
+    )
+])
 
 gift_keyboard = InlineKeyboardMarkup(inline_keyboard=gift_keyboard_buttons)
 
