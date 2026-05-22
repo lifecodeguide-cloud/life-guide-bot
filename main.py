@@ -277,7 +277,6 @@ destiny_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="Дальше ➡️", callback_data="show_final_outro")]]
 )
 
-final_keyboard = None
 
 gift_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
@@ -301,7 +300,7 @@ gift_keyboard = InlineKeyboardMarkup(
         ]
     ]
 )
-
+final_keyboard = gift_keyboard
 
 START_TEXT = (
     "Life Guide приветствует вас ✨\n\n"
