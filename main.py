@@ -773,7 +773,7 @@ async def show_final_outro_handler(callback: CallbackQuery):
     await callback.message.answer(FINAL_OUTRO)
 
     await callback.message.answer(
-        "Можно поделиться ботом по этой ссылке и забрать подарок 👇\n\n"
+        "Поделиться ботом по этой ссылке и забрать подарок 👇\n\n"
         f"{bot_link}\n",
         reply_markup=gift_keyboard,
     )
