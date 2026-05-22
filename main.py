@@ -793,7 +793,10 @@ async def get_gift_pdf_handler(callback: CallbackQuery):
 
     if GIFT_PDF_URL:
         await callback.message.answer_document(
-            URLInputFile(GIFT_PDF_URL)
+            URLInputFile(
+                GIFT_PDF_URL,
+                filename="personalny_den_sily.pdf"
+            )
         )
         return
 
