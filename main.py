@@ -287,7 +287,7 @@ final_keyboard = InlineKeyboardMarkup(
 
 gift_keyboard_buttons = [[InlineKeyboardButton(
     text="Поделиться ботом",
-    url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=Посмотри — интересно ✨ ✨"
+    url=f"https://t.me/share/url?url=https://t.me/{BOT_USERNAME}&text=Посмотри+-+интересно+✨"
 )]]
 gift_keyboard_buttons.append([
     InlineKeyboardButton(
