@@ -798,8 +798,16 @@ async def get_gift_pdf_handler(callback: CallbackQuery):
                 filename="personalny_den_sily.pdf"
             )
         )
+        await callback.message.answer(
+            reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Совместимость", url=COMPATIBILITY_BOT_URL)],
+                [InlineKeyboardButton(text="Другая дата", callback_data="other_date")]
+            ]    
+            )
+        )
         return
-
+        
     if GIFT_PDF_PATH and os.path.exists(GIFT_PDF_PATH):
         await callback.message.answer_document(
             FSInputFile(GIFT_PDF_PATH)
