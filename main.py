@@ -838,8 +838,8 @@ async def other_date_handler(callback: CallbackQuery):
         "destiny": None,
         "varna_main": None,
         "varna_secondary": None,
-        "paid": paid,
-        "paid_shown": data.get("paid_shown", False),
+        "paid": False,
+        "paid_shown": False,
         "stage": "awaiting_other_date",
     }
 
