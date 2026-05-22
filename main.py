@@ -13,6 +13,7 @@ from aiogram.types import (
     CallbackQuery,
     ReplyKeyboardRemove,
     FSInputFile,
+    URLInputFile,
 )
 
 from soul_texts import SOUL_TEXTS, SOUL_INTRO
