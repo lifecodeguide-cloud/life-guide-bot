@@ -277,7 +277,28 @@ destiny_outro_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="Дальше ➡️", callback_data="show_final_outro")]]
 )
 
-final_keyboard = None
+final_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="Поделиться",
+                callback_data="share_bot"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="Совместимость",
+                url=COMPATIBILITY_BOT_URL
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="Другая дата",
+                callback_data="other_date"
+            )
+        ]
+    ]
+)
 
 gift_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
