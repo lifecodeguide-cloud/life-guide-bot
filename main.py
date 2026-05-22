@@ -87,15 +87,102 @@ def calculate_destiny(date_str: str) -> int:
     return reduce_to_digit(total)
 
 
-def calculate_varna_main(date_str: str) -> int:
-    # Основная варна берётся из того же числа, что и предназначение.
-    return calculate_purpose(date_str)
+VARNA_MAP = {
+    1: "kshatriya",
+    2: "vaishya",
+    3: "brahman",
+    4: "shudra",
+    5: "vaishya",
+    6: "brahman",
+    7: "shudra",
+    8: "shudra",
+    9: "kshatriya",
+}
 
 
-def calculate_varna_secondary(date_str: str) -> int:
-    # Дополнительный оттенок берётся из числа экспрессии.
-    return calculate_expression(date_str)
+def calculate_varna_main(date_str: str):
 
+    day, month, year = map(int, date_str.split("."))
+
+    soul = reduce_to_digit(day)
+
+    expression = reduce_to_digit(day + month)
+
+    year_number = reduce_to_digit(
+        sum(int(d) for d in str(year))
+    )
+
+    destiny = reduce_to_digit(
+        sum(int(d) for d in date_str if d.isdigit())
+    )
+
+    weights = {}
+
+    def add(number, percent):
+
+        varna = VARNA_MAP[number]
+
+        weights[varna] = (
+            weights.get(varna, 0)
+            + percent
+        )
+
+    add(soul, 40)
+    add(expression, 10)
+    add(year_number, 10)
+    add(destiny, 40)
+
+    sorted_varnas = sorted(
+        weights.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    return sorted_varnas[0][0]
+
+
+def calculate_varna_secondary(date_str: str):
+
+    day, month, year = map(int, date_str.split("."))
+
+    soul = reduce_to_digit(day)
+
+    expression = reduce_to_digit(day + month)
+
+    year_number = reduce_to_digit(
+        sum(int(d) for d in str(year))
+    )
+
+    destiny = reduce_to_digit(
+        sum(int(d) for d in date_str if d.isdigit())
+    )
+
+    weights = {}
+
+    def add(number, percent):
+
+        varna = VARNA_MAP[number]
+
+        weights[varna] = (
+            weights.get(varna, 0)
+            + percent
+        )
+
+    add(soul, 40)
+    add(expression, 10)
+    add(year_number, 10)
+    add(destiny, 40)
+
+    sorted_varnas = sorted(
+        weights.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    if len(sorted_varnas) > 1:
+        return sorted_varnas[1][0]
+
+    return None
 
 def has_calculation_data(data: dict) -> bool:
     return (
