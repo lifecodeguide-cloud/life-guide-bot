@@ -902,6 +902,7 @@ async def main():
 
     bot = Bot(token=TOKEN)
     from aiogram.types import MenuButtonDefault
+    await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
     await dp.start_polling(bot)
 
 
