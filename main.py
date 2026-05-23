@@ -901,6 +901,7 @@ async def main():
         raise ValueError("BOT_TOKEN не найден в переменных окружения")
 
     bot = Bot(token=TOKEN)
+    await bot.set_chat_menu_button()
     await dp.start_polling(bot)
 
 
