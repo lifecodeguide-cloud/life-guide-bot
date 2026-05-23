@@ -901,7 +901,7 @@ async def main():
         raise ValueError("BOT_TOKEN не найден в переменных окружения")
 
     bot = Bot(token=TOKEN)
-    await bot.set_chat_menu_button()
+    from aiogram.types import MenuButtonDefault
     await dp.start_polling(bot)
 
 
