@@ -288,31 +288,8 @@ gift_keyboard = InlineKeyboardMarkup(
         ],
         [
             InlineKeyboardButton(
-                text="📅 Другая дата",
-                callback_data="other_date"
-            )
-        ],
-        [
-            InlineKeyboardButton(
                 text="💕 Совместимость",
                 url=COMPATIBILITY_BOT_URL
-            )
-        ]
-    ]
-)
-
-final_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="📤 Поделиться ботом",
-                url=f"https://t.me/{BOT_USERNAME}"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="🎁 Забрать подарок",
-                callback_data="get_gift_pdf"
             )
         ],
         [
@@ -320,15 +297,10 @@ final_keyboard = InlineKeyboardMarkup(
                 text="📅 Другая дата",
                 callback_data="other_date"
             )
-        ],
-        [
-            InlineKeyboardButton(
-                text="💕 Совместимость",
-                url=COMPATIBILITY_BOT_URL
-            )
         ]
     ]
 )
+final_keyboard = gift_keyboard
 
 START_TEXT = (
     "Life Guide приветствует вас ✨\n\n"
@@ -499,13 +471,7 @@ async def start_handler(message: Message):
             return
 
         if stage == "final_outro_shown":
-            bot_link = f"https://t.me/{BOT_USERNAME}"
-            await message.answer(FINAL_OUTRO)
-            await message.answer(
-                "Поделиться ботом по этой ссылке и забрать подарок 👇\n\n"
-                f"{bot_link}\n",
-                reply_markup=final_keyboard,
-            )
+            await message.answer(FINAL_OUTRO, reply_markup=final_keyboard)
             return
 
         await send_paid_flow(message, data)
@@ -784,7 +750,7 @@ async def show_destiny_outro_handler(callback: CallbackQuery):
 
     data = get_user(callback.from_user.id)
 
-    if not data.get("paid") and not data.get("paid_shown"):
+    if not data.get("paid"):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
@@ -798,7 +764,7 @@ async def show_final_outro_handler(callback: CallbackQuery):
 
     data = get_user(callback.from_user.id)
 
-    if not data.get("paid") and not data.get("paid_shown"):
+    if not data.get("paid"):
         await callback.message.answer("Сначала откройте полный разбор.")
         return
 
@@ -809,7 +775,7 @@ async def show_final_outro_handler(callback: CallbackQuery):
     await callback.message.answer(
         "Поделиться ботом по этой ссылке и забрать подарок 👇\n\n"
         f"{bot_link}\n",
-        reply_markup=final_keyboard,
+        reply_markup=gift_keyboard,
     )
 
     data["stage"] = "final_outro_shown"
@@ -935,8 +901,6 @@ async def main():
         raise ValueError("BOT_TOKEN не найден в переменных окружения")
 
     bot = Bot(token=TOKEN)
-    from aiogram.types import MenuButtonDefault
-    await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
     await dp.start_polling(bot)
 
 
