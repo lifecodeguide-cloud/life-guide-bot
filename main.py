@@ -426,6 +426,11 @@ async def start_handler(message: Message):
         await send_paid_flow(message, data)
         return
 
+    if text.startswith("/start love"):
+        await message.answer(START_TEXT)
+        await message.answer("Введите дату рождения в формате ДД.ММ.ГГГГ")
+        return
+    
     if data.get("paid"):
         stage = data.get("stage")
 
